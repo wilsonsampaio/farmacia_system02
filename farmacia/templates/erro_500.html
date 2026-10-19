@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Erro no sistema{% endblock %}
+{% block content %}
+{% with codigo='500', titulo='Algo deu errado', mensagem='Ocorreu um erro inesperado ao processar a operação.
+O sistema registrou a falha. Tente novamente ou contate o suporte se persistir.', url=url_for('dashboard.index'),
+       botao='Voltar ao início', classe='critico', extra='Se o problema continuar, verifique o log de atividades em Administração.' %}
+  {% include 'partials/erro.html' with context %}
+{% endwith %}
+{% endblock %}
+{% block sem_layout %}
+{% with codigo='500', titulo='Algo deu errado', mensagem='Ocorreu um erro inesperado. Tente novamente.',
+       url=url_for('auth.login'), botao='Ir para o login', classe='critico' %}
+  {% include 'partials/erro.html' with context %}
+{% endwith %}
+{% endblock %}

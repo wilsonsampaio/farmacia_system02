@@ -1,0 +1,18 @@
+# Ambiente virtual
+venv/
+.venv/
+
+# Dados locais: banco SQLite, backups e fotos de produtos
+# (a pasta data/ é recriada automaticamente no primeiro boot, com seed)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Sistema / editores
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

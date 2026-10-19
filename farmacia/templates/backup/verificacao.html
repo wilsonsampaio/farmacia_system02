@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Verificação de integridade{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho('Verificação de integridade', 'Banco de dados atual e arquivos de backup',
+  '<a class="btn btn-ghost" href="' ~ url_for('backup.index') ~ '">Voltar ao backup</a>
+   <a class="btn btn-primario" href="' ~ url_for('backup.verificar') ~ '">Verificar novamente</a>') }}
+
+<div class="alerta-barra {{ 'alerta-ok' if integridade == 'ok' else 'alerta-perigo' }}">
+  <svg class="ic">{% if integridade == 'ok' %}<use href="#i-check"/>{% else %}<use href="#i-alerta"/>{% endif %}</svg>
+  <div><strong>Banco de dados: {{ 'íntegro' if integridade == 'ok' else integridade }}</strong>
+    <span>PRAGMA integrity_check executado com sucesso no arquivo data/farmacia.db.</span></div>
+</div>
+
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Registros por tabela</h2></div></header>
+  <div class="grade-campos grade-leitura">
+    {% for nome, total in qtd.items() %}
+      <div class="info-bloco"><span>{{ nome }}</span><strong>{{ total|inteiro }}</strong></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Backups do histórico</h2>
+    <p>Conferência do hash SHA-256 registrado versus o arquivo em disco</p></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela">
+      <thead><tr><th>Arquivo</th><th>Situação</th><th>Detalhe</th></tr></thead>
+      <tbody>
+      {% for arquivo, situacao, detalhe in resultados %}
+        <tr>
+          <td><strong>{{ arquivo }}</strong></td>
+          <td>{{ badge(situacao, 'ok' if situacao == 'ok' else 'critico') }}</td>
+          <td class="obs">{{ detalhe }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="vazio">Nenhum backup no histórico.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="box-dica">
+  💡 Restaure apenas arquivos gerados pelo próprio sistema. Se um hash estiver divergente, gere um novo backup
+  antes de qualquer operação crítica.
+</div>
+{% endblock %}

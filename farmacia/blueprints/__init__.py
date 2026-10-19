@@ -1,0 +1,1 @@
+"""Blueprints (rotas) do sistema."""

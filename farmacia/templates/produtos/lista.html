@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Medicamentos{% endblock %}
+{% from 'partials/macros.html' import cabecalho, paginacao, badge, situacao_tarja, estoque_badge %}
+
+{% block content %}
+{{ cabecalho('Medicamentos', total ~ ' registro(s) no catálogo',
+  '<a class="btn btn-primario" href="' ~ url_for('produtos.novo') ~ '"><svg class="ic"><use href="#i-mais"/></svg> Novo medicamento</a>' if pode('produtos') else '') }}
+
+<form class="filtros" method="get">
+  <div class="campo campo-busca">
+    <span class="lupa">⌕</span>
+    <input type="search" name="q" value="{{ termo }}" placeholder="Nome, princípio ativo, código, EAN ou laboratório…" autofocus>
+  </div>
+  <select name="classe" class="sel-filtro">
+    <option value="">Todas as classes</option>
+    {% for c in classes %}<option value="{{ c.classe_terapeutica }}" {% if classe == c.classe_terapeutica %}selected{% endif %}>{{ c.classe_terapeutica }}</option>{% endfor %}
+  </select>
+  <select name="lab" class="sel-filtro">
+    <option value="">Todos os laboratórios</option>
+    {% for l in laboratorios %}<option value="{{ l.laboratorio }}" {% if laboratorio == l.laboratorio %}selected{% endif %}>{{ l.laboratorio }}</option>{% endfor %}
+  </select>
+  <select name="tarja" class="sel-filtro">
+    <option value="">Todas as tarjas</option>
+    {% for codigo, nome in tarjas %}<option value="{{ codigo }}" {% if tarja == codigo %}selected{% endif %}>{{ nome }}</option>{% endfor %}
+  </select>
+  <select name="situacao" class="sel-filtro">
+    <option value="">Toda a situação</option>
+    <option value="ativo" {% if situacao == 'ativo' %}selected{% endif %}>Ativos</option>
+    <option value="baixo" {% if situacao == 'baixo' %}selected{% endif %}>Estoque baixo</option>
+    <option value="zerado" {% if situacao == 'zerado' %}selected{% endif %}>Sem estoque</option>
+    <option value="inativo" {% if situacao == 'inativo' %}selected{% endif %}>Inativos</option>
+  </select>
+  <select name="ord" class="sel-filtro">
+    {% for valor, rotulo in [('nome','Ordenar: nome'), ('estoque','Ordenar: estoque'), ('preco','Ordenar: preço'), ('laboratorio','Ordenar: laboratório')] %}
+      <option value="{{ valor }}" {% if ordenar == valor %}selected{% endif %}>{{ rotulo }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-primario" type="submit">Filtrar</button>
+  {% if termo or classe or laboratorio or tarja or situacao %}
+    <a class="btn btn-ghost" href="{{ url_for('produtos.lista') }}">Limpar</a>
+  {% endif %}
+</form>
+
+{% if itens %}
+<div class="grade-produtos">
+  {% for p in itens %}
+  <article class="card-produto {% if p.ativo == 0 %}inativo{% endif %}" data-fade>
+    <a class="card-produto-foto" href="{{ url_for('produtos.detalhe', produto_id=p.id) }}">
+      {% if p.foto %}
+        <img src="{{ media_url(p.foto) }}" alt="{{ p.nome }}" loading="lazy">
+      {% else %}
+        <div class="sem-foto"><svg class="ic"><use href="#i-pill"/></svg><span>Sem foto</span></div>
+      {% endif %}
+      <span class="card-tarja tarja-{{ p.tarja }}">{{ {'livre':'Livre','amarela':'Amarela','vermelha':'Vermelha','preta':'Preta'}.get(p.tarja, p.tarja) }}</span>
+      {% if p.controlado %}<span class="card-flag">Controlado</span>{% endif %}
+    </a>
+    <div class="card-produto-corpo">
+      <h3><a href="{{ url_for('produtos.detalhe', produto_id=p.id) }}">{{ p.nome }}</a></h3>
+      <p class="card-principio">{{ p.principio_ativo or '—' }}</p>
+      <p class="card-lab">{{ p.laboratorio or 'Laboratório não informado' }}</p>
+      <div class="card-linha">
+        <strong class="preco">{{ p.preco_venda|brl }}</strong>
+        {{ estoque_badge(p.estoque, p.estoque_minimo) }}
+      </div>
+      <div class="card-rodape">
+        <span class="codigo">{{ p.codigo }}{% if p.ean %} · {{ p.ean }}{% endif %}</span>
+        <a class="btn btn-ghost btn-xs" href="{{ url_for('pdv.index') }}" title="Enviar para o PDV">Vender</a>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{{ paginacao(page, pages, 'produtos.lista', {'q': termo, 'classe': classe, 'lab': laboratorio, 'tarja': tarja, 'situacao': situacao, 'ord': ordenar}) }}
+{% else %}
+<div class="cartao centralizado">
+  <div class="vazio-icone"><svg class="ic"><use href="#i-pill"/></svg></div>
+  <h3>Nenhum medicamento encontrado</h3>
+  <p>Ajuste os filtros ou cadastre um novo medicamento com foto, bula, princípio ativo e laboratório.</p>
+  {% if pode('produtos') %}
+  <a class="btn btn-primario" href="{{ url_for('produtos.novo') }}">Cadastrar medicamento</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

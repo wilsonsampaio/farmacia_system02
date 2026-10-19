@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% block title %}{{ cliente.nome }}{% endblock %}
+{% from 'partials/macros.html' import cabecalho, paginacao, badge %}
+
+{% block content %}
+<div class="detalhe-hero detalhe-hero-pessoa">
+  <div class="detalhe-info">
+    <div class="detalhe-tags">
+      {% if cliente.ativo == 0 %}{{ badge('Inativo', 'critico') }}
+      {% elif cliente.saldo_credito > 0 %}{{ badge('Ficha com saldo', 'alerta') }}
+      {% else %}{{ badge('Regular', 'ok') }}{% endif %}
+      {% if cliente.pontos %}{{ badge(cliente.pontos ~ ' pontos', 'azul') }}{% endif %}
+    </div>
+    <h1><span class="avatar avatar-lg">{{ cliente.nome[:1]|upper }}</span> {{ cliente.nome }}</h1>
+    <p class="detalhe-principio">
+      {{ cliente.cpf|cpf if cliente.cpf else 'CPF não informado' }}
+      {% if cliente.rg %} · RG {{ cliente.rg }}{% endif %}
+      {% if cliente.data_nascimento %} · {{ cliente.data_nascimento|idade }}{% endif %}
+    </p>
+    <p class="detalhe-lab">
+      {{ cliente.celular or cliente.telefone or 'Sem telefone' }}
+      {% if cliente.email %} · {{ cliente.email }}{% endif %}
+      {% if cliente.cidade %} · {{ cliente.cidade }}/{{ cliente.uf }}{% endif %}
+    </p>
+    {% if cliente.observacoes %}<p class="texto-quebra obs-cliente">📝 {{ cliente.observacoes }}</p>{% endif %}
+
+    <div class="detalhe-acoes">
+      <a class="btn btn-primario" href="{{ url_for('pdv.index') }}"><svg class="ic"><use href="#i-pdv"/></svg> Abrir PDV com este cliente</a>
+      <a class="btn btn-secundario" href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}"><svg class="ic"><use href="#i-editar"/></svg> Editar cadastro</a>
+      <button class="btn btn-ghost" type="button" data-abre-modal="modalPagamento">Receber pagamento</button>
+      <form method="post" action="{{ url_for('clientes.excluir', cliente_id=cliente.id) }}" class="form-inline"
+            data-confirm="Excluir ou desativar o cliente {{ cliente.nome }}?">
+        <button class="btn btn-perigo btn-ghost" type="submit"><svg class="ic"><use href="#i-excluir"/></svg> Excluir</button>
+      </form>
+    </div>
+  </div>
+
+  <aside class="detalhe-lateral">
+    <div class="info-bloco destaque-saldo">
+      <span>Saldo da ficha</span>
+      <strong class="{{ 'texto-critico' if cliente.saldo_credito > 0 else 'texto-ok' }}">{{ cliente.saldo_credito|brl }}</strong>
+      <small>em aberto</small>
+    </div>
+    <div class="info-bloco"><span>Limite de crédito</span>
+      <strong>{{ cliente.limite_credito|brl if cliente.limite_credito > 0 else 'Sem limite' }}</strong></div>
+    <div class="info-bloco"><span>Disponível para fiado</span>
+      <strong>{{ ((cliente.limite_credito - cliente.saldo_credito) if cliente.limite_credito > 0 else 0)|brl }}</strong></div>
+    <div class="info-bloco"><span>Total comprado</span><strong>{{ total_comprado|brl }}</strong></div>
+    <div class="info-bloco"><span>Última compra</span>
+      <strong>{{ ultima.data|datahora if ultima else '—' }}</strong></div>
+    <div class="info-bloco"><span>Cliente desde</span><strong>{{ cliente.criado_em|data }}</strong></div>
+    <div class="info-bloco"><span>Cadastro nº</span><strong>{{ '%06d'|format(cliente.id) }}</strong></div>
+  </aside>
+</div>
+
+<nav class="abas" data-abas>
+  <button type="button" class="aba ativo" data-aba="compras">Compras <span class="aba-cont">{{ compras|length }}</span></button>
+  <button type="button" class="aba" data-aba="ficha">Ficha / conta corrente</button>
+  <button type="button" class="aba" data-aba="dados">Dados do cadastro</button>
+</nav>
+
+<section class="cartao aba-painel" data-painel="compras">
+  <header class="cartao-cab"><div><h2>Histórico de compras</h2>
+    <p>{{ compras|length }} venda(s) nesta página · total {{ total_comprado|brl }}</p></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Venda</th><th>Data</th><th>Operador</th><th class="num">Itens</th>
+        <th>Pagamento</th><th class="num">Total</th><th></th></tr></thead>
+      <tbody>
+      {% for v in compras %}
+        <tr class="{{ 'linha-cancelada' if v.status == 'cancelada' }}">
+          <td><a class="link-forte" href="{{ url_for('vendas.detalhe', venda_id=v.id) }}">{{ v.numero }}</a></td>
+          <td>{{ v.data|datahora }}</td>
+          <td>{{ v.operador or '-' }}</td>
+          <td class="num">{{ v.itens }}</td>
+          <td>{{ {'dinheiro':'Dinheiro','debito':'Cartão débito','credito':'Cartão crédito','pix':'PIX',
+                  'ficha':'Ficha','ticket':'Ticket','boleto':'Boleto'}.get(v.forma_pagamento, v.forma_pagamento) }}</td>
+          <td class="num"><strong>{{ v.total|brl }}</strong></td>
+          <td class="fim">
+            {% if v.status == 'cancelada' %}{{ badge('cancelada', 'critico') }}
+            {% else %}<a class="btn btn-ghost btn-xs" href="{{ url_for('vendas.cupom', venda_id=v.id) }}">Cupom</a>{% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="vazio">Nenhuma compra registrada para este cliente.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ paginacao(page, pages, 'clientes.detalhe', {'cliente_id': cliente.id}) }}
+</section>
+
+<section class="cartao aba-painel" data-painel="ficha" hidden>
+  <header class="cartao-cab"><div><h2>Ficha do cliente</h2><p>Lançamentos de compras fiadas e recebimentos</p></div>
+    <button class="btn btn-primario btn-sm" type="button" data-abre-modal="modalPagamento">Receber pagamento</button></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Data</th><th>Descrição</th><th>Vencimento</th><th class="num">Valor</th>
+        <th class="num">Saldo</th><th>Responsável</th></tr></thead>
+      <tbody>
+      {% for f in ficha %}
+        <tr>
+          <td>{{ f.criado_em|datahora }}</td>
+          <td>{{ f.descricao or ('Compra na ficha' if f.tipo == 'lancamento' else 'Pagamento') }}
+            {% if f.tipo == 'lancamento' %}{{ badge('débito', 'critico') }}{% else %}{{ badge('crédito', 'ok') }}{% endif %}</td>
+          <td>{{ f.vencimento|data if f.vencimento else '—' }}
+            {% if f.vencimento and f.vencimento|dias is not none and f.vencimento|dias < 0 and f.tipo == 'lancamento' %}
+              {{ badge('vencida', 'critico') }}{% endif %}</td>
+          <td class="num {{ 'texto-critico' if f.valor > 0 else 'texto-ok' }}">
+            <strong>{{ f.valor|brl }}</strong></td>
+          <td class="num">{{ f.saldo|brl }}</td>
+          <td>{{ f.usuario_id or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="vazio">Ficha sem movimentações.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="cartao aba-painel" data-painel="dados" hidden>
+  <header class="cartao-cab"><div><h2>Dados completos do cadastro</h2></div>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}">Editar</a></header>
+  <div class="grade-campos grade-leitura">
+    <div class="info-bloco"><span>CPF</span><strong>{{ cliente.cpf|cpf if cliente.cpf else '—' }}</strong></div>
+    <div class="info-bloco"><span>RG</span><strong>{{ cliente.rg or '—' }}</strong></div>
+    <div class="info-bloco"><span>Nascimento</span><strong>{{ cliente.data_nascimento|data if cliente.data_nascimento else '—' }}</strong></div>
+    <div class="info-bloco"><span>Telefone</span><strong>{{ cliente.telefone or '—' }}</strong></div>
+    <div class="info-bloco"><span>Celular</span><strong>{{ cliente.celular or '—' }}</strong></div>
+    <div class="info-bloco"><span>E-mail</span><strong>{{ cliente.email or '—' }}</strong></div>
+    <div class="info-bloco"><span>CEP</span><strong>{{ cliente.cep or '—' }}</strong></div>
+    <div class="info-bloco"><span>Endereço</span>
+      <strong>{{ cliente.logradouro or '—' }}{{ ', ' ~ cliente.numero if cliente.numero else '' }}</strong></div>
+    <div class="info-bloco"><span>Bairro</span><strong>{{ cliente.bairro or '—' }}</strong></div>
+    <div class="info-bloco"><span>Cidade/UF</span><strong>{{ cliente.cidade or '—' }}/{{ cliente.uf or '' }}</strong></div>
+    <div class="info-bloco"><span>Pontos de fidelidade</span><strong>{{ cliente.pontos }}</strong></div>
+    <div class="info-bloco"><span>Cadastrado em</span><strong>{{ cliente.criado_em|datahora }}</strong></div>
+  </div>
+  {% if cliente.observacoes %}
+    <footer class="cartao-rodape"><span class="info-rodape"><strong>Observações:</strong> {{ cliente.observacoes }}</span></footer>
+  {% endif %}
+</section>
+
+{# modal pagamento #}
+<div class="modal" id="modalPagamento" hidden>
+  <div class="modal-dialogo">
+    <div class="modal-cab">
+      <h3>Receber pagamento · {{ cliente.nome }}</h3>
+      <button class="fecha-modal" data-fecha aria-label="Fechar">×</button>
+    </div>
+    <form method="post" action="{{ url_for('clientes.pagamento', cliente_id=cliente.id) }}">
+      <div class="modal-corpo">
+        <p class="texto-suave">Saldo devedor atual: <strong class="texto-critico">{{ cliente.saldo_credito|brl }}</strong></p>
+        <label class="campo"><span>Valor recebido (R$)</span>
+          <input type="text" name="valor" class="moeda" required placeholder="0,00" autofocus></label>
+        <label class="campo"><span>Forma de pagamento</span>
+          <select name="forma">
+            <option value="dinheiro">Dinheiro</option>
+            <option value="debito">Cartão de débito</option>
+            <option value="credito">Cartão de crédito</option>
+            <option value="pix">PIX</option>
+            <option value="ticket">Ticket / Vale</option>
+          </select></label>
+        <label class="campo"><span>Descrição</span>
+          <input type="text" name="descricao" value="Pagamento de ficha"></label>
+      </div>
+      <div class="modal-acoes">
+        <button class="btn btn-ghost" type="button" data-fecha>Cancelar</button>
+        <button class="btn btn-primario" type="submit">Registrar recebimento</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

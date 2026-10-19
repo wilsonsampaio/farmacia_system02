@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Usuários{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho('Usuários do sistema', 'Perfis, permissões e acesso aos terminais',
+  '<a class="btn btn-primario" href="' ~ url_for('admin.usuario_novo') ~ '"><svg class="ic"><use href="#i-mais"/></svg> Novo usuário</a>') }}
+
+<div class="grade-cards grade-usuarios">
+  {% for u in itens %}
+  <article class="cartao card-usuario {{ 'inativo' if u.ativo == 0 }}" data-fade>
+    <header class="card-usuario-cab">
+      <span class="avatar avatar-md">{{ u.nome[:1]|upper }}</span>
+      <div>
+        <h3>{{ u.nome }}</h3>
+        <p>{{ u.login }} · {{ {'admin':'Administrador','gerente':'Gerente','caixa':'Operador de caixa'}[u.perfil] }}</p>
+      </div>
+      {% if u.ativo == 0 %}{{ badge('Inativo', 'critico') }}
+      {% else %}{{ badge('Ativo', 'ok') }}{% endif %}
+    </header>
+    <ul class="card-vendedor-info">
+      <li><span>Último acesso</span><strong>{{ u.ultimo_acesso|datahora if u.ultimo_acesso else 'nunca' }}</strong></li>
+      <li><span>Terminal</span><strong>{{ u.terminal or '—' }}</strong></li>
+      <li><span>Vendas realizadas</span><strong>{{ u.vendas|inteiro }}</strong></li>
+      <li><span>Faturamento</span><strong>{{ u.faturamento|brl }}</strong></li>
+    </ul>
+    <footer class="card-usuario-acoes">
+      <a class="btn btn-ghost btn-xs" href="{{ url_for('admin.usuario_editar', usuario_id=u.id) }}">Editar</a>
+      <a class="btn btn-ghost btn-xs" href="{{ url_for('admin.usuario_editar', usuario_id=u.id) }}#senha">Redefinir senha</a>
+      {% if u.id != usuario.id %}
+      <form method="post" action="{{ url_for('admin.usuario_excluir', usuario_id=u.id) }}" class="form-inline"
+            data-confirm="Excluir/desativar o usuário {{ u.nome }}?">
+        <button class="btn btn-perigo btn-ghost btn-xs" type="submit">Excluir</button>
+      </form>
+      {% endif %}
+    </footer>
+  </article>
+  {% endfor %}
+</div>
+
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>O que cada perfil pode fazer</h2></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela">
+      <thead><tr><th>Perfil</th><th>Acessos</th></tr></thead>
+      <tbody>
+        <tr><td>{{ badge('Administrador', 'azul') }}</td>
+          <td>Acesso total: dashboard, PDV, cadastros, estoque, relatórios, usuários, parâmetros e <strong>backup/restauração</strong>.</td></tr>
+        <tr><td>{{ badge('Gerente', 'ok') }}</td>
+          <td>Tudo menos usuários, parâmetros da empresa e restauração de backup.</td></tr>
+        <tr><td>{{ badge('Operador de caixa', 'neutro') }}</td>
+          <td>PDV, consulta de clientes, visualização de vendas e histórico. Pode cancelar apenas as próprias vendas.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Administração{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho('Administração', 'Dados da empresa, parâmetros e integração do sistema',
+  '<a class="btn btn-ghost" href="' ~ url_for('admin.usuarios') ~ '"><svg class="ic"><use href="#i-user"/></svg> Usuários</a>
+   <a class="btn btn-ghost" href="' ~ url_for('admin.auditoria') ~ '"><svg class="ic"><use href="#i-relogio"/></svg> Log de atividades</a>
+   <a class="btn btn-ghost" href="' ~ url_for('admin.terminais') ~ '">Computadores</a>') }}
+
+<nav class="abas" data-abas>
+  <button type="button" class="aba ativo" data-aba="dados">Dados da empresa</button>
+  <button type="button" class="aba" data-aba="cupom">Cupom e alertas</button>
+  <button type="button" class="aba" data-aba="sistema">Sistema</button>
+</nav>
+
+<section class="cartao aba-painel" data-painel="dados">
+  <header class="cartao-cab"><div><h2>Dados que aparecem no cupom e nos relatórios</h2></div></header>
+  <form method="post" action="{{ url_for('admin.empresa') }}" enctype="multipart/form-data">
+    <div class="grade-campos">
+      <label class="campo"><span>{{ textos.get('empresa_nome') }}</span>
+        <input type="text" name="empresa_nome" value="{{ params.get('empresa_nome','') }}"></label>
+      <label class="campo"><span>{{ textos.get('empresa_fantasia') }}</span>
+        <input type="text" name="empresa_fantasia" value="{{ params.get('empresa_fantasia','') }}"></label>
+      <label class="campo"><span>{{ textos.get('empresa_cnpj') }}</span>
+        <input type="text" name="empresa_cnpj" value="{{ params.get('empresa_cnpj','') }}" data-cnpj></label>
+      <label class="campo"><span>{{ textos.get('empresa_ie') }}</span>
+        <input type="text" name="empresa_ie" value="{{ params.get('empresa_ie','') }}"></label>
+      <label class="campo"><span>{{ textos.get('empresa_crf') }}</span>
+        <input type="text" name="empresa_crf" value="{{ params.get('empresa_crf','') }}"></label>
+      <label class="campo"><span>{{ textos.get('empresa_telefone') }}</span>
+        <input type="tel" name="empresa_telefone" value="{{ params.get('empresa_telefone','') }}" data-fone></label>
+      <label class="campo campo-largo"><span>{{ textos.get('empresa_endereco') }}</span>
+        <input type="text" name="empresa_endereco" value="{{ params.get('empresa_endereco','') }}"></label>
+      <label class="campo"><span>{{ textos.get('empresa_cidade') }}</span>
+        <input type="text" name="empresa_cidade" value="{{ params.get('empresa_cidade','') }}"></label>
+      <label class="campo"><span>{{ textos.get('empresa_email') }}</span>
+        <input type="email" name="empresa_email" value="{{ params.get('empresa_email','') }}"></label>
+
+      <label class="campo"><span>Logotipo (JPG/PNG)</span>
+        <input type="file" name="logo" accept="image/*">
+        {% if params.get('empresa_logo') %}
+          <small class="dica"><img src="{{ media_url(params.get('empresa_logo'), 'empresa') }}" alt="Logo" class="logo-preview">
+            <label class="campo-check mini"><input type="checkbox" name="remover_logo"><span>Remover logo</span></label></small>
+        {% endif %}</label>
+    </div>
+    <footer class="cartao-rodape"><span class="info-rodape">A logo aparece no menu lateral e no topo do sistema.</span>
+      <button class="btn btn-primario" type="submit">Salvar dados da empresa</button></footer>
+  </form>
+</section>
+
+<section class="cartao aba-painel" data-painel="cupom" hidden>
+  <header class="cartao-cab"><div><h2>Cupom, alertas e metas</h2></div></header>
+  <form method="post" action="{{ url_for('admin.empresa') }}">
+    <div class="grade-campos">
+      <label class="campo campo-largo"><span>{{ textos.get('cupom_texto_rodape') }}</span>
+        <input type="text" name="cupom_texto_rodape" value="{{ params.get('cupom_texto_rodape','') }}"></label>
+      <label class="campo campo-largo"><span>{{ textos.get('cupom_texto_aviso') }}</span>
+        <input type="text" name="cupom_texto_aviso" value="{{ params.get('cupom_texto_aviso','') }}"></label>
+      <label class="campo"><span>{{ textos.get('estoque_alerta_dias') }}</span>
+        <input type="number" name="estoque_alerta_dias" min="1" max="365"
+               value="{{ params.get('estoque_alerta_dias','60') }}"></label>
+      <label class="campo"><span>{{ textos.get('ficha_prazo_dias') }}</span>
+        <input type="number" name="ficha_prazo_dias" min="1" max="365"
+               value="{{ params.get('ficha_prazo_dias','30') }}"></label>
+      <label class="campo"><span>{{ textos.get('meta_diaria') }}</span>
+        <input type="text" name="meta_diaria" class="moeda" value="{{ params.get('meta_diaria','2000,00') }}"></label>
+      <label class="campo"><span>Tema padrão da interface</span>
+        <select name="tema">
+          <option value="claro" {% if params.get('tema') == 'claro' %}selected{% endif %}>Claro</option>
+          <option value="escuro" {% if params.get('tema') == 'escuro' %}selected{% endif %}>Escuro</option>
+        </select></label>
+    </div>
+    <footer class="cartao-rodape"><span class="info-rodape">Estes alertas alimentam o aviso do menu lateral.</span>
+      <button class="btn btn-primario" type="submit">Salvar configurações</button></footer>
+  </form>
+</section>
+
+<section class="cartao aba-painel" data-painel="sistema" hidden>
+  <header class="cartao-cab"><div><h2>Informações do sistema</h2></div></header>
+  <div class="grade-campos grade-leitura">
+    <div class="info-bloco"><span>Versão</span><strong>FarmaciaSystem 1.0</strong></div>
+    <div class="info-bloco"><span>Banco de dados</span><strong>SQLite (data/farmacia.db)</strong></div>
+    <div class="info-bloco"><span>Pasta de dados</span><strong>data/</strong></div>
+    <div class="info-bloco"><span>Fotos dos produtos</span><strong>data/uploads/produtos</strong></div>
+    <div class="info-bloco"><span>Backups</span><strong>data/backups</strong></div>
+    <div class="info-bloco"><span>Uso em rede</span><strong>Servidor + navegadores (não precisa instalar nas máquinas)</strong></div>
+  </div>
+  <div class="box-dica">
+    <strong>Como usar em vários computadores:</strong> inicie o servidor na máquina principal e acesse
+    <code>http://IP-DA-MÁQUINA:5000</code> nos demais computadores pelo navegador (Chrome, Edge ou Firefox).
+    Nada precisa ser instalado nos caixas.
+  </div>
+  <footer class="cartao-rodape">
+    <span class="info-rodape">Última alteração: {{ params.get('empresa_nome') }}</span>
+    <a class="btn btn-ghost" href="{{ url_for('backup.index') }}">Ir para Backup</a>
+  </footer>
+</section>
+{% endblock %}

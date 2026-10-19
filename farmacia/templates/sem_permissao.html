@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Sem permissão{% endblock %}
+{% block content %}
+{% with codigo='403', titulo='Acesso restrito', mensagem='O seu perfil não tem permissão para acessar este recurso.
+Perfil atual: ' ~ (perfil or 'desconhecido') ~ ' · recurso solicitado: ' ~ recurso ~ '.
+Se precisar de acesso, procure um administrador.', url=url_for('dashboard.index'), botao='Voltar ao dashboard',
+       classe='alerta' %}
+  {% include 'partials/erro.html' with context %}
+{% endwith %}
+{% endblock %}
+{% block sem_layout %}
+{% with codigo='403', titulo='Acesso restrito', mensagem='Entre com um usuário autorizado.',
+       url=url_for('auth.login'), botao='Ir para o login', classe='alerta' %}
+  {% include 'partials/erro.html' with context %}
+{% endwith %}
+{% endblock %}

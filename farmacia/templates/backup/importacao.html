@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% block title %}Importar dados de outros sistemas{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho('Importar dados', 'Receba planilhas de outros sistemas de farmácia, ERP ou Excel',
+  '<a class="btn btn-ghost" href="' ~ url_for('backup.index') ~ '">Voltar ao backup</a>') }}
+
+<ol class="etapas">
+  <li class="{{ 'ativo' if etapa == 1 else ('feito' if etapa > 1 else '') }}">1 · Enviar arquivo</li>
+  <li class="{{ 'ativo' if etapa == 2 else ('feito' if etapa > 2 else '') }}">2 · Mapear colunas</li>
+  <li class="{{ 'ativo' if etapa == 3 else ('feito' if etapa > 3 else '') }}">3 · Conferir</li>
+  <li class="{{ 'ativo' if etapa == 4 else '' }}">4 · Resultado</li>
+</ol>
+
+{% if etapa == 1 %}
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Envie o arquivo exportado</h2>
+    <p>Formatos aceitos: .csv, .txt (delimitado por ; , ou tab) e .json — exporte do Excel como CSV UTF-8</p></div></header>
+  <form method="post" action="{{ url_for('backup.importar') }}" enctype="multipart/form-data" class="formulario">
+    <div class="grade-campos">
+      <label class="campo"><span>Arquivo<span class="obrig">*</span></span>
+        <input type="file" name="arquivo" accept=".csv,.txt,.json" required></label>
+      <label class="campo"><span>Tipo de cadastro<span class="obrig">*</span></span>
+        <select name="tabela">
+          <option value="produtos">Produtos / medicamentos</option>
+          <option value="clientes">Clientes</option>
+          <option value="fornecedores">Fornecedores</option>
+        </select></label>
+      <label class="campo"><span>Modelo do sistema de origem</span>
+        <select name="modelo">
+          {% for codigo, nome in modelos.items() %}
+            <option value="{{ codigo }}">{{ nome }}</option>
+          {% endfor %}
+        </select>
+        <small class="dica">Escolha o sistema que gerou o arquivo para melhorar a leitura automática das colunas.</small></label>
+    </div>
+    <footer class="cartao-rodape">
+      <span class="info-rodape">Nada é gravado até você confirmar na etapa seguinte.</span>
+      <button class="btn btn-primario" type="submit">Analisar arquivo</button>
+    </footer>
+  </form>
+
+  <div class="box-dica">
+    <strong>Modelos reconhecidos:</strong>
+    {% for codigo, nome in modelos.items() if codigo != 'auto' %}
+      <span class="chip">{{ nome }}</span>
+    {% endfor %}
+    <br>Caso a detecção falhe, ajuste manualmente a coluna de cada campo na próxima etapa.
+  </div>
+</section>
+{% endif %}
+
+{% if etapa == 2 %}
+<section class="cartao">
+  <header class="cartao-cab">
+    <div><h2>Mapeamento de colunas</h2>
+      <p>{{ total_linhas }} linha(s) encontradas · separador “{{ delimitador }}” · codificação {{ codificacao }}
+        · arquivo: {{ nome_arquivo }}</p></div>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('backup.importar') }}">Enviar outro arquivo</a>
+  </header>
+
+  <form method="post" action="{{ url_for('backup.importar_aplicar') }}">
+    <input type="hidden" name="destino" value="{{ destino }}">
+    <input type="hidden" name="tabela" value="{{ tabela }}">
+
+    <div class="tabela-scroll">
+      <table class="tabela tabela-mapeamento">
+        <thead><tr><th style="width:30%">Coluna do arquivo</th><th>Exemplos nas primeiras linhas</th>
+          <th style="width:28%">Importar como</th></tr></thead>
+        <tbody>
+        {% for idx, coluna in colunas %}
+          <tr>
+            <td>
+              <strong>{{ coluna or ('Coluna ' ~ loop.index) }}</strong>
+              <input type="hidden" name="coluna" value="{{ idx }}">
+            </td>
+            <td class="amostra">
+              {% for linha in amostra if idx < linha|length %}
+                <span>{{ linha[idx] or '—' }}</span>
+              {% endfor %}
+            </td>
+            <td>
+              <select name="campo" class="sel-filtro">
+                <option value="">— não importar —</option>
+                {% for c in campos %}
+                  <option value="{{ c }}" {% if mapeamento.get(idx) == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grade-campos" style="margin-top:16px">
+      <label class="campo campo-check">
+        <input type="radio" name="acao" value="criar" checked>
+        <span><strong>Cadastrar novos e atualizar existentes</strong><br>
+          <small class="dica">Produtos são casados pelo código; clientes pelo CPF ou nome; fornecedores pelo CNPJ.</small></span></label>
+      <label class="campo campo-check">
+        <input type="radio" name="acao" value="atualizar">
+        <span><strong>Somente atualizar cadastros existentes</strong><br>
+          <small class="dica">Não cria novos registros.</small></span></label>
+      <label class="campo campo-check">
+        <input type="radio" name="acao" value="ignorar">
+        <span><strong>Somente cadastrar os que não existem</strong><br>
+          <small class="dica">Mantém os dados atuais quando houver correspondência.</small></span></label>
+    </div>
+
+    <footer class="cartao-rodape">
+      <span class="info-rodape">Uma prévia de 5 linhas é exibida ao lado das colunas.</span>
+      <div class="acoes">
+        <a class="btn btn-ghost" href="{{ url_for('backup.importar') }}">Cancelar</a>
+        <button class="btn btn-primario btn-lg" type="submit">Importar {{ total_linhas }} linha(s)</button>
+      </div>
+    </footer>
+  </form>
+</section>
+{% endif %}
+
+{% if etapa == 3 %}
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Arquivo JSON reconhecido</h2>
+    <p>{{ dados.get('sistema', 'Sistema de origem desconhecido') }} ·
+       gerado em {{ dados.get('gerado_em', '—') }}</p></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela">
+      <thead><tr><th>Tabela</th><th class="num">Registros</th></tr></thead>
+      <tbody>
+      {% for nome, linhas in dados.get('tabelas', {}).items() %}
+        <tr><td>{{ nome }}</td><td class="num">{{ linhas|length }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="alerta-barra alerta-perigo">
+    <svg class="ic"><use href="#i-alerta"/></svg>
+    <div><strong>Importação total</strong>
+      <span>Os dados atuais serão substituídos pelos do arquivo. Um backup de segurança é criado automaticamente.</span></div>
+  </div>
+  <form method="post" action="{{ url_for('backup.importar_json') }}" enctype="multipart/form-data">
+    <input type="hidden" name="arquivo_oculto" value="">
+    <label class="campo"><span>Digite RESTAURAR para confirmar</span>
+      <input type="text" name="confirmacao" placeholder="RESTAURAR" required></label>
+    <div class="acoes">
+      <a class="btn btn-ghost" href="{{ url_for('backup.importar') }}">Voltar</a>
+      <button class="btn btn-perigo" type="submit" disabled title="Reenvie o arquivo na tela de Backup">Importar JSON</button>
+    </div>
+  </form>
+  <p class="dica">Para importar JSON, use a área “Importar dados” na tela de Backup.</p>
+</section>
+{% endif %}
+
+{% if etapa == 4 %}
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Importação concluída</h2><p>Tabela: {{ tabela }}</p></div></header>
+  <div class="kpis kpis-compactos">
+    <div class="kpi"><div class="kpi-txt"><span class="kpi-rot">Criados</span>
+      <strong class="kpi-val texto-ok">{{ criados }}</strong></div></div>
+    <div class="kpi"><div class="kpi-txt"><span class="kpi-rot">Atualizados</span>
+      <strong class="kpi-val kpi-azul-txt">{{ atualizados }}</strong></div></div>
+    <div class="kpi"><div class="kpi-txt"><span class="kpi-rot">Ignorados</span>
+      <strong class="kpi-val">{{ ignorados }}</strong></div></div>
+    <div class="kpi"><div class="kpi-txt"><span class="kpi-rot">Erros</span>
+      <strong class="kpi-val {{ 'texto-critico' if erros else '' }}">{{ erros|length }}</strong></div></div>
+  </div>
+
+  {% if erros %}
+  <div class="alerta-barra alerta-perigo">
+    <svg class="ic"><use href="#i-alerta"/></svg>
+    <div><strong>Linhas não importadas</strong><span>Confira os dados de origem e reenvie o arquivo corrigido.</span></div>
+  </div>
+  <ul class="lista-erros">
+    {% for e in erros %}<li>{{ e }}</li>{% endfor %}
+  </ul>
+  {% else %}
+  <p class="vazio">✓ Todas as linhas foram processadas sem erro.</p>
+  {% endif %}
+
+  <div class="acoes">
+    <a class="btn btn-primario" href="{{ url_for('produtos.lista') if tabela == 'produtos' else (url_for('clientes.lista') if tabela == 'clientes' else url_for('fornecedores.lista')) }}">Ver cadastros</a>
+    <a class="btn btn-ghost" href="{{ url_for('backup.importar') }}">Importar outro arquivo</a>
+    <a class="btn btn-ghost" href="{{ url_for('backup.index') }}">Voltar ao backup</a>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

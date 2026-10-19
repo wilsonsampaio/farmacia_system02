@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Vendas{% endblock %}
+{% from 'partials/macros.html' import cabecalho, paginacao, badge %}
+
+{% block content %}
+{{ cabecalho('Vendas', 'Histórico completo de vendas do sistema',
+  '<a class="btn btn-primario" href="' ~ url_for('pdv.index') ~ '"><svg class="ic"><use href="#i-pdv"/></svg> Abrir PDV</a>') }}
+
+<form class="filtros" method="get">
+  <div class="campo campo-busca"><span class="lupa">⌕</span>
+    <input type="search" name="q" value="{{ termo }}" placeholder="Número da venda, cliente ou operador…" autofocus></div>
+  <input type="date" name="de" value="{{ args.get('de','') }}" class="sel-filtro" title="De">
+  <input type="date" name="ate" value="{{ args.get('ate','') }}" class="sel-filtro" title="Até">
+  <select name="forma" class="sel-filtro">
+    <option value="">Todas as formas</option>
+    {% for codigo, nome in formas %}
+      <option value="{{ codigo }}" {% if args.get('forma') == codigo %}selected{% endif %}>{{ nome }}</option>
+    {% endfor %}
+  </select>
+  <select name="status" class="sel-filtro">
+    <option value="">Todas as situações</option>
+    <option value="concluida" {% if args.get('status') == 'concluida' %}selected{% endif %}>Concluídas</option>
+    <option value="cancelada" {% if args.get('status') == 'cancelada' %}selected{% endif %}>Canceladas</option>
+  </select>
+  <select name="operador" class="sel-filtro">
+    <option value="">Todos os operadores</option>
+    {% for u in operadores %}
+      <option value="{{ u.id }}" {% if args.get('operador')|string == u.id|string %}selected{% endif %}>{{ u.nome }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-primario" type="submit">Filtrar</button>
+  <a class="btn btn-ghost" href="{{ url_for('vendas.lista') }}">Limpar</a>
+</form>
+
+<div class="kpis kpis-compactos">
+  <div class="kpi"><div class="kpi-txt"><span class="kpi-rot">Vendas no filtro</span>
+    <strong class="kpi-val">{{ totais.q }}</strong><small class="kpi-sub">registros concluídos</small></div></div>
+  <div class="kpi"><div class="kpi-txt"><span class="kpi-rot">Faturamento</span>
+    <strong class="kpi-val">{{ totais.t|brl }}</strong><small class="kpi-sub">soma dos totais</small></div></div>
+  <div class="kpi"><div class="kpi-txt"><span class="kpi-rot">Ticket médio</span>
+    <strong class="kpi-val">{{ (totais.t / totais.q if totais.q else 0)|brl }}</strong>
+    <small class="kpi-sub">por venda</small></div></div>
+</div>
+
+{% if itens %}
+<div class="cartao">
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Venda</th><th>Data/hora</th><th>Cliente</th><th>Operador</th><th>Terminal</th>
+        <th class="num">Itens</th><th>Pagamento</th><th class="num">Desconto</th><th class="num">Total</th>
+        <th>Situação</th><th></th></tr></thead>
+      <tbody>
+      {% for v in itens %}
+        <tr class="{{ 'linha-cancelada' if v.status == 'cancelada' }}" data-fade>
+          <td><a class="link-forte" href="{{ url_for('vendas.detalhe', venda_id=v.id) }}">{{ v.numero }}</a></td>
+          <td>{{ v.data|datahora }}</td>
+          <td>{{ v.cliente or 'Consumidor' }}</td>
+          <td>{{ v.operador or '—' }}</td>
+          <td>{{ v.terminal or '—' }}</td>
+          <td class="num">{{ v.itens }}</td>
+          <td>{{ {'dinheiro':'Dinheiro','debito':'Cartão débito','credito':'Cartão crédito','pix':'PIX',
+                  'ficha':'Ficha','ticket':'Ticket','boleto':'Boleto'}.get(v.forma_pagamento, v.forma_pagamento) }}</td>
+          <td class="num">{{ v.desconto|brl }}</td>
+          <td class="num"><strong>{{ v.total|brl }}</strong></td>
+          <td>{% if v.status == 'cancelada' %}{{ badge('Cancelada', 'critico') }}{% else %}{{ badge('Concluída', 'ok') }}{% endif %}</td>
+          <td class="fim">
+            <a class="btn btn-ghost btn-xs" href="{{ url_for('vendas.cupom', venda_id=v.id) }}" target="_blank" title="Cupom">Cupom</a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{ paginacao(page, pages, 'vendas.lista', {'q': termo, 'de': args.get('de',''), 'ate': args.get('ate',''),
+    'forma': args.get('forma',''), 'status': args.get('status',''), 'operador': args.get('operador','')}) }}
+{% else %}
+<div class="cartao centralizado">
+  <div class="vazio-icone"><svg class="ic"><use href="#i-venda"/></svg></div>
+  <h3>Nenhuma venda encontrada</h3>
+  <p>Realize vendas no PDV ou ajuste os filtros de pesquisa.</p>
+  <a class="btn btn-primario" href="{{ url_for('pdv.index') }}">Abrir PDV</a>
+</div>
+{% endif %}
+{% endblock %}

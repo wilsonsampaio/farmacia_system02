@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar cliente' if cliente else 'Novo cliente' }}{% endblock %}
+{% from 'partials/macros.html' import cabecalho, campo %}
+
+{% block content %}
+{{ cabecalho(('Editar ' ~ cliente.nome) if cliente else 'Novo cliente',
+  'Dados para identificação, contato e crédito',
+  '<a class="btn btn-ghost" href="' ~ (url_for('clientes.detalhe', cliente_id=cliente.id) if cliente else url_for('clientes.lista')) ~ '">Cancelar</a>') }}
+
+<form class="formulario" method="post">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Dados pessoais</h2><p>Campos marcados com * são obrigatórios</p></div></header>
+    <div class="grade-campos">
+      <label class="campo"><span>Nome completo *<span class="obrig">*</span></span>
+        <input type="text" name="nome" value="{{ dados.nome or '' }}" required autofocus placeholder="Nome do cliente"></label>
+      <label class="campo"><span>CPF</span>
+        <input type="text" name="cpf" value="{{ dados.cpf or '' }}" data-cpf placeholder="000.000.000-00">
+        <small class="dica">Validado pelo sistema.</small></label>
+      <label class="campo"><span>RG</span><input type="text" name="rg" value="{{ dados.rg or '' }}"></label>
+      <label class="campo"><span>Data de nascimento</span>
+        <input type="date" name="data_nascimento" value="{{ dados.data_nascimento or '' }}"></label>
+      <label class="campo"><span>Telefone</span><input type="tel" name="telefone" value="{{ dados.telefone or '' }}" data-fone placeholder="(00) 0000-0000"></label>
+      <label class="campo"><span>Celular / WhatsApp</span><input type="tel" name="celular" value="{{ dados.celular or '' }}" data-fone placeholder="(00) 00000-0000"></label>
+      <label class="campo campo-largo"><span>E-mail</span><input type="email" name="email" value="{{ dados.email or '' }}" placeholder="cliente@email.com"></label>
+    </div>
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Endereço</h2></div></header>
+    <div class="grade-campos">
+      <label class="campo"><span>CEP</span><input type="text" name="cep" value="{{ dados.cep or '' }}" data-cep placeholder="00000-000"></label>
+      <label class="campo campo-largo"><span>Logradouro</span><input type="text" name="logradouro" value="{{ dados.logradouro or '' }}" placeholder="Rua, avenida…"></label>
+      <label class="campo"><span>Número</span><input type="text" name="numero" value="{{ dados.numero or '' }}"></label>
+      <label class="campo"><span>Complemento</span><input type="text" name="complemento" value="{{ dados.complemento or '' }}"></label>
+      <label class="campo"><span>Bairro</span><input type="text" name="bairro" value="{{ dados.bairro or '' }}"></label>
+      <label class="campo"><span>Cidade</span><input type="text" name="cidade" value="{{ dados.cidade or '' }}"></label>
+      <label class="campo"><span>UF</span><input type="text" name="uf" value="{{ dados.uf or '' }}" maxlength="2" style="text-transform:uppercase"></label>
+    </div>
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Crédito e observações</h2><p>Usado nas vendas na ficha do cliente</p></div></header>
+    <div class="grade-campos">
+      <label class="campo"><span>Limite de crédito (R$)</span>
+        <input type="text" name="limite_credito" class="moeda" value="{{ '%.2f'|format(dados.limite_credito or 0) if cliente else '' }}" placeholder="0,00">
+        <small class="dica">Deixe em branco/zero para não permitir vendas fiadas.</small></label>
+      <label class="campo campo-check">
+        <input type="checkbox" name="ativo" {% if (dados.ativo if dados.ativo is defined else 1) %}checked{% endif %}>
+        <span>Cliente ativo</span></label>
+      <label class="campo campo-largo"><span>Observações</span>
+        <textarea name="observacoes" rows="3" placeholder="Alergias, preferências, contatos adicionais…">{{ dados.observacoes or '' }}</textarea></label>
+    </div>
+    <footer class="cartao-rodape">
+      {% if cliente %}
+        <span class="info-rodape">Saldo atual da ficha: <strong>{{ cliente.saldo_credito|brl }}</strong>
+          · Pontos: {{ cliente.pontos }}</span>
+      {% endif %}
+      <button class="btn btn-primario" type="submit">{{ 'Salvar alterações' if cliente else 'Cadastrar cliente' }}</button>
+    </footer>
+  </section>
+</form>
+{% endblock %}

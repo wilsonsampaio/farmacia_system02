@@ -1,0 +1,54 @@
+/* ============================================================
+   FarmaSys — CSS de impressão
+   Oculta a interface e imprime apenas o conteúdo principal.
+   (O cupom térmico tem estilo próprio no template da venda.)
+   ============================================================ */
+
+@page { size: A4; margin: 14mm; }
+
+html, body { background: #fff !important; color: #000 !important; }
+
+/* esconde a navegação e controles */
+.sidebar,
+.topbar,
+.mobile-only,
+.icone-btn,
+.paginacao,
+.filtros-acao,
+.acoes-tabela,
+.acoes-finais,
+.btn,
+#fs-toasts,
+.toasts,
+.modal,
+.overlay-sucesso,
+.pdv-lateral,
+.pdv-atalhos,
+.pdv-ultimas,
+.ferramentas { display: none !important; }
+
+/* estrutura de página */
+.app { display: block !important; }
+.conteudo { padding: 0 !important; max-width: none !important; margin: 0 !important; }
+
+/* cartões e tabelas em preto e branco legível */
+.cartao, .tabela, table { border-color: #999 !important; box-shadow: none !important; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid #ccc !important; padding: 5px 6px; font-size: 11.5px; }
+thead { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+tr { page-break-inside: avoid; }
+
+/* cores de apoio viram texto */
+.texto-ok, .texto-erro, .texto-aviso { color: #000 !important; font-weight: 700; }
+.badge { border: 1px solid #666 !important; background: none !important; color: #000 !important; }
+
+/* cabeçalho de relatório */
+.page-title, h1, h2 { color: #000 !important; }
+.kpis { grid-template-columns: repeat(4, 1fr) !important; }
+.cartao { border: 1px solid #bbb !important; break-inside: avoid; }
+
+/* gráficos SVG */
+svg { max-width: 100%; height: auto; }
+
+/* links de navegação não são impressos */
+a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9px; color: #555; }

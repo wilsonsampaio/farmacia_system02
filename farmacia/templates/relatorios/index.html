@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Relatórios{% endblock %}
+{% from 'partials/macros.html' import cabecalho %}
+
+{% block content %}
+{{ cabecalho('Relatórios gerenciais', 'Escolha um relatório e ajuste o período na sequência') }}
+
+<form class="filtros" method="get" id="formPeriodoGlobal">
+  <label class="campo-inline"><span>Período de</span>
+    <input type="date" name="de" value="{{ de }}"></label>
+  <label class="campo-inline"><span>até</span>
+    <input type="date" name="ate" value="{{ ate }}"></label>
+  <span class="texto-suave">O período escolhido será aplicado aos relatórios de vendas e movimentações.</span>
+</form>
+
+{% for grupo, itens in grupos.items() %}
+<section class="secao-relatorios">
+  <h2 class="titulo-secao">{{ grupo }}</h2>
+  <div class="grade-cards">
+    {% for item in itens %}
+      {% if item.perm != 'administracao' or usuario.perfil == 'admin' %}
+      <a class="cartao card-relatorio" data-fade
+         href="{{ url_for('relatorios.relatorio', slug=item.slug, de=de, ate=ate) }}">
+        <span class="card-rel-ic">
+          <svg class="ic"><use href="#i-grafico"/></svg>
+        </span>
+        <div>
+          <h3>{{ item.titulo }}</h3>
+          <p>{{ item.descricao }}</p>
+        </div>
+        <span class="card-rel-seta">›</span>
+      </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<div class="box-dica">
+  💡 Todos os relatórios permitem <strong>exportar em CSV</strong> (abre no Excel) e <strong>imprimir</strong>.
+  Use os filtros de período na própria página do relatório para refinar os dados.
+</div>
+{% endblock %}

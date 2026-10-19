@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Fornecedores{% endblock %}
+{% from 'partials/macros.html' import cabecalho, paginacao, badge %}
+
+{% block content %}
+{{ cabecalho('Fornecedores', total ~ ' cadastro(s)',
+  '<a class="btn btn-primario" href="' ~ url_for('fornecedores.novo') ~ '"><svg class="ic"><use href="#i-mais"/></svg> Novo fornecedor</a>') }}
+
+<form class="filtros" method="get">
+  <div class="campo campo-busca"><span class="lupa">⌕</span>
+    <input type="search" name="q" value="{{ termo }}" placeholder="Razão social, fantasia, CNPJ ou cidade…" autofocus></div>
+  <button class="btn btn-primario" type="submit">Filtrar</button>
+  {% if termo %}<a class="btn btn-ghost" href="{{ url_for('fornecedores.lista') }}">Limpar</a>{% endif %}
+</form>
+
+{% if itens %}
+<div class="grade-cards">
+  {% for f in itens %}
+  <article class="cartao card-vendedor" data-fade>
+    <header class="card-vendedor-cab">
+      <span class="avatar avatar-md">{{ (f.razao_social)[:1]|upper }}</span>
+      <div>
+        <h3><a href="{{ url_for('fornecedores.detalhe', fornecedor_id=f.id) }}">{{ f.razao_social }}</a></h3>
+        <p>{{ f.nome_fantasia or 'Sem nome fantasia' }}</p>
+      </div>
+      {% if f.ativo == 0 %}{{ badge('Inativo', 'critico') }}{% endif %}
+    </header>
+    <ul class="card-vendedor-info">
+      <li><span>CNPJ</span><strong>{{ f.cnpj|cpf if f.cnpj else '—' }}</strong></li>
+      <li><span>Cidade</span><strong>{{ (f.cidade or '—') ~ ('/' ~ f.uf if f.uf else '') }}</strong></li>
+      <li><span>Telefone</span><strong>{{ f.telefone or '—' }}</strong></li>
+      <li><span>Notas recebidas</span><strong>{{ f.notas }}</strong></li>
+    </ul>
+    <footer class="card-vendedor-rodape">
+      <span>Total comprado <strong>{{ f.comprado|brl }}</strong></span>
+      <a class="btn btn-ghost btn-xs" href="{{ url_for('fornecedores.detalhe', fornecedor_id=f.id) }}">Abrir ficha</a>
+    </footer>
+  </article>
+  {% endfor %}
+</div>
+{{ paginacao(page, pages, 'fornecedores.lista', {'q': termo}) }}
+{% else %}
+<div class="cartao centralizado">
+  <div class="vazio-icone"><svg class="ic"><use href="#i-fornecedor"/></svg></div>
+  <h3>Nenhum fornecedor encontrado</h3>
+  <p>Cadastre distribuidoras e laboratórios para registrar entradas de nota fiscal.</p>
+  <a class="btn btn-primario" href="{{ url_for('fornecedores.novo') }}">Cadastrar fornecedor</a>
+</div>
+{% endif %}
+{% endblock %}

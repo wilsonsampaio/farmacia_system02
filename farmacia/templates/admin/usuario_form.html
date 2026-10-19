@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar usuário' if alvo else 'Novo usuário' }}{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho(('Editar ' ~ alvo.nome) if alvo else 'Novo usuário',
+  'Defina acesso, perfil e terminal de trabalho',
+  '<a class="btn btn-ghost" href="' ~ url_for('admin.usuarios') ~ '">Voltar à lista</a>') }}
+
+<div class="grid grid-2">
+  <form class="formulario" method="post">
+    <section class="cartao">
+      <header class="cartao-cab"><div><h2>Dados de acesso</h2></div></header>
+      <div class="grade-campos">
+        <label class="campo"><span>Nome completo *<span class="obrig">*</span></span>
+          <input type="text" name="nome" value="{{ alvo.nome if alvo else '' }}" required autofocus></label>
+        <label class="campo"><span>Login *<span class="obrig">*</span></span>
+          <input type="text" name="login" value="{{ alvo.login if alvo else '' }}" minlength="3" required></label>
+        {% if not alvo %}
+        <label class="campo"><span>Senha inicial *<span class="obrig">*</span></span>
+          <input type="text" name="senha" minlength="6" required>
+          <small class="dica">Mínimo de 6 caracteres — o usuário pode alterar depois.</small></label>
+        {% endif %}
+        <label class="campo"><span>Perfil</span>
+          <select name="perfil">
+            {% for codigo, nome in perfis %}
+              <option value="{{ codigo }}" {% if alvo and alvo.perfil == codigo %}selected{% endif %}>{{ nome }}</option>
+            {% endfor %}
+          </select></label>
+        <label class="campo"><span>Terminal / PDV</span>
+          <input type="text" name="terminal" value="{{ alvo.terminal if alvo else '' }}" placeholder="Ex.: CAIXA1">
+          <small class="dica">Usado para identificar o computador no histórico de vendas.</small></label>
+        {% if alvo %}
+        <label class="campo campo-check">
+          <input type="checkbox" name="ativo" {% if alvo.ativo %}checked{% endif %}>
+          <span>Usuário ativo (pode entrar no sistema)</span></label>
+        {% endif %}
+      </div>
+      <footer class="cartao-rodape">
+        <span></span>
+        <button class="btn btn-primario" type="submit">{{ 'Salvar alterações' if alvo else 'Criar usuário' }}</button>
+      </footer>
+    </section>
+  </form>
+
+  <div class="stack">
+    {% if alvo %}
+    <form class="formulario" method="post" action="{{ url_for('admin.usuario_senha', usuario_id=alvo.id) }}" id="senha">
+      <section class="cartao">
+        <header class="cartao-cab"><div><h2>Redefinir senha</h2>
+          <p>Administrador define uma nova senha para este usuário</p></div></header>
+        <div class="grade-campos">
+          <label class="campo"><span>Nova senha</span>
+            <input type="text" name="senha" minlength="6" required placeholder="mínimo 6 caracteres"></label>
+        </div>
+        <footer class="cartao-rodape"><span></span>
+          <button class="btn btn-secundario" type="submit">Redefinir senha</button></footer>
+      </section>
+    </form>
+
+    <section class="cartao">
+      <header class="cartao-cab"><div><h2>Situação atual</h2></div></header>
+      <div class="grade-campos grade-leitura">
+        <div class="info-bloco"><span>Perfil</span>
+          <strong>{{ {'admin':'Administrador','gerente':'Gerente','caixa':'Operador de caixa'}[alvo.perfil] }}</strong></div>
+        <div class="info-bloco"><span>Último acesso</span>
+          <strong>{{ alvo.ultimo_acesso|datahora if alvo.ultimo_acesso else 'nunca' }}</strong></div>
+        <div class="info-bloco"><span>Desde</span><strong>{{ alvo.criado_em|data }}</strong></div>
+        <div class="info-bloco"><span>Situação</span>
+          <strong>{{ badge('Ativo', 'ok') if alvo.ativo else badge('Inativo', 'critico') }}</strong></div>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="cartao">
+      <header class="cartao-cab"><div><h2>Permissões por perfil</h2></div></header>
+      <ul class="lista-permissoes">
+        <li><strong>Administrador</strong><span>Tudo, incluindo backup, restauração e usuários.</span></li>
+        <li><strong>Gerente</strong><span>Cadastros, estoque, vendas, relatórios e fichas.</span></li>
+        <li><strong>Operador</strong><span>PDV, clientes e consulta de vendas.</span></li>
+      </ul>
+    </section>
+  </div>
+</div>
+{% endblock %}

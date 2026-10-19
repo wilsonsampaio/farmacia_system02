@@ -1,0 +1,99 @@
+{#- Macros reutilizadas em todo o sistema -#}
+
+{% macro cabecalho(titulo, subtitulo='', acoes='') %}
+<div class="page-head">
+  <div class="page-head-txt">
+    <h1 class="page-title">{{ titulo }}</h1>
+    {% if subtitulo %}<p class="page-sub">{{ subtitulo }}</p>{% endif %}
+  </div>
+  {% if acoes %}<div class="page-acoes">{{ acoes|safe }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro paginacao(page, pages, endpoint, params={}) %}
+{% if pages > 1 %}
+<nav class="paginacao" aria-label="Paginação">
+  <a class="pg-btn {% if page <= 1 %}desativado{% endif %}"
+     href="{{ url_pag(endpoint, params, page-1) }}" aria-label="Anterior">‹</a>
+  {% set inicio = [1, page-2] | max %}
+  {% set fim = [pages, page+2] | min %}
+  {% if inicio > 1 %}
+    <a class="pg-num" href="{{ url_pag(endpoint, params, 1) }}">1</a>
+    {% if inicio > 2 %}<span class="pg-els">…</span>{% endif %}
+  {% endif %}
+  {% for p in range(inicio, fim + 1) %}
+    <a class="pg-num {% if p == page %}ativo{% endif %}" href="{{ url_pag(endpoint, params, p) }}">{{ p }}</a>
+  {% endfor %}
+  {% if fim < pages %}
+    {% if fim < pages - 1 %}<span class="pg-els">…</span>{% endif %}
+    <a class="pg-num" href="{{ url_pag(endpoint, params, pages) }}">{{ pages }}</a>
+  {% endif %}
+  <a class="pg-btn {% if page >= pages %}desativado{% endif %}"
+     href="{{ url_pag(endpoint, params, page+1) }}" aria-label="Próxima">›</a>
+</nav>
+{% endif %}
+{% endmacro %}
+
+{% macro campo(rotulo, nome, valor='', tipo='text', dica='', classe='', attrs={}) %}
+<div class="campo {{ classe }}">
+  <label for="{{ nome }}">{{ rotulo }}{% if attrs.get('required') %}<span class="obrig">*</span>{% endif %}</label>
+  <input type="{{ tipo }}" id="{{ nome }}" name="{{ nome }}" value="{{ valor if valor is not none else '' }}"
+         {% for k, v in attrs.items() %}{% if k != 'required' %}{{ k }}="{{ v }}"{% elif v %}required{% endif %}{% endfor %}>
+  {% if dica %}<small class="dica">{{ dica }}</small>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro textarea(rotulo, nome, valor='', linhas=4, dica='', attrs={}) %}
+<div class="campo">
+  <label for="{{ nome }}">{{ rotulo }}</label>
+  <textarea id="{{ nome }}" name="{{ nome }}" rows="{{ linhas }}"
+            {% for k, v in attrs.items() %}{{ k }}="{{ v }}"{% endfor %}>{{ valor if valor is not none else '' }}</textarea>
+  {% if dica %}<small class="dica">{{ dica }}</small>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro select(rotulo, nome, opcoes, valor='', vazio=None, dica='', attrs={}) %}
+<div class="campo">
+  <label for="{{ nome }}">{{ rotulo }}</label>
+  <select id="{{ nome }}" name="{{ nome }}" {% for k, v in attrs.items() %}{{ k }}="{{ v }}"{% endfor %}>
+    {% if vazio is not none %}<option value="">{{ vazio }}</option>{% endif %}
+    {% for op in opcoes %}
+      {% if op is iterable and op is not string %}
+        <option value="{{ op[0] }}" {% if op[0] | string == valor | string %}selected{% endif %}>{{ op[1] }}</option>
+      {% else %}
+        <option value="{{ op }}" {% if op == valor %}selected{% endif %}>{{ op }}</option>
+      {% endif %}
+    {% endfor %}
+  </select>
+  {% if dica %}<small class="dica">{{ dica }}</small>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro badge(texto, tipo='neutro') %}
+<span class="badge badge-{{ tipo }}">{{ texto }}</span>
+{% endmacro %}
+
+{% macro situacao_tarja(tarja) %}
+  {% if tarja == 'preta' %}{{ badge('Retenção de receita', 'preta') }}
+  {% elif tarja == 'vermelha' %}{{ badge('Sob retenção', 'vermelha') }}
+  {% elif tarja == 'amarela' %}{{ badge('Sob prescrição', 'amarela') }}
+  {% else %}{{ badge('Venda livre', 'livre') }}{% endif %}
+{% endmacro %}
+
+{% macro estoque_badge(estoque, minimo) %}
+  {% if estoque <= 0 %}{{ badge('Sem estoque', 'critico') }}
+  {% elif estoque <= minimo %}{{ badge('Estoque baixo ' ~ estoque, 'alerta') }}
+  {% else %}{{ badge(estoque ~ ' un.', 'ok') }}{% endif %}
+{% endmacro %}
+
+{% macro voltar(url, texto='Voltar') %}
+<a href="{{ url }}" class="btn btn-ghost btn-sm"><span class="ic">‹</span> {{ texto }}</a>
+{% endmacro %}
+
+{% macro busca_acima(placeholder, valor='', acao='') %}
+<form class="busca-caixa" action="{{ acao or request.path }}" method="get" role="search">
+  <span class="lupa">⌕</span>
+  <input type="search" name="q" value="{{ valor }}" placeholder="{{ placeholder }}" autocomplete="off">
+  <button class="btn btn-primario btn-sm" type="submit">Buscar</button>
+</form>
+{% endmacro %}

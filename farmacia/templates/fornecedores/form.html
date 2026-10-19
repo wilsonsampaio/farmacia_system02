@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar fornecedor' if fornecedor else 'Novo fornecedor' }}{% endblock %}
+{% from 'partials/macros.html' import cabecalho %}
+
+{% block content %}
+{{ cabecalho(('Editar ' ~ fornecedor.razao_social) if fornecedor else 'Novo fornecedor',
+  'Dados para notas de entrada e compras',
+  '<a class="btn btn-ghost" href="' ~ (url_for('fornecedores.detalhe', fornecedor_id=fornecedor.id) if fornecedor else url_for('fornecedores.lista')) ~ '">Cancelar</a>') }}
+
+<form class="formulario" method="post">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Identificação</h2></div></header>
+    <div class="grade-campos">
+      <label class="campo"><span>Razão social *<span class="obrig">*</span></span>
+        <input type="text" name="razao_social" value="{{ dados.razao_social or '' }}" required autofocus></label>
+      <label class="campo"><span>Nome fantasia</span>
+        <input type="text" name="nome_fantasia" value="{{ dados.nome_fantasia or '' }}"></label>
+      <label class="campo"><span>CNPJ</span>
+        <input type="text" name="cnpj" value="{{ dados.cnpj or '' }}" data-cnpj placeholder="00.000.000/0000-00"></label>
+      <label class="campo"><span>Inscrição estadual</span>
+        <input type="text" name="inscricao_estadual" value="{{ dados.inscricao_estadual or '' }}"></label>
+      <label class="campo"><span>Site</span><input type="text" name="site" value="{{ dados.site or '' }}" placeholder="https://…"></label>
+      <label class="campo campo-check">
+        <input type="checkbox" name="ativo" {% if (dados.ativo if dados.ativo is defined else 1) %}checked{% endif %}>
+        <span>Fornecedor ativo</span></label>
+    </div>
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Contato</h2></div></header>
+    <div class="grade-campos">
+      <label class="campo"><span>Telefone</span><input type="tel" name="telefone" value="{{ dados.telefone or '' }}" data-fone></label>
+      <label class="campo"><span>E-mail</span><input type="email" name="email" value="{{ dados.email or '' }}"></label>
+      <label class="campo"><span>Nome do contato</span><input type="text" name="contato_nome" value="{{ dados.contato_nome or '' }}"></label>
+      <label class="campo"><span>Telefone do contato</span><input type="tel" name="contato_fone" value="{{ dados.contato_fone or '' }}" data-fone></label>
+    </div>
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Endereço</h2></div></header>
+    <div class="grade-campos">
+      <label class="campo"><span>CEP</span><input type="text" name="cep" value="{{ dados.cep or '' }}" data-cep></label>
+      <label class="campo campo-largo"><span>Logradouro</span><input type="text" name="logradouro" value="{{ dados.logradouro or '' }}"></label>
+      <label class="campo"><span>Número</span><input type="text" name="numero" value="{{ dados.numero or '' }}"></label>
+      <label class="campo"><span>Bairro</span><input type="text" name="bairro" value="{{ dados.bairro or '' }}"></label>
+      <label class="campo"><span>Cidade</span><input type="text" name="cidade" value="{{ dados.cidade or '' }}"></label>
+      <label class="campo"><span>UF</span><input type="text" name="uf" value="{{ dados.uf or '' }}" maxlength="2" style="text-transform:uppercase"></label>
+      <label class="campo campo-largo"><span>Observações</span>
+        <textarea name="observacoes" rows="3">{{ dados.observacoes or '' }}</textarea></label>
+    </div>
+    <footer class="cartao-rodape">
+      <span></span>
+      <button class="btn btn-primario" type="submit">{{ 'Salvar alterações' if fornecedor else 'Cadastrar fornecedor' }}</button>
+    </footer>
+  </section>
+</form>
+{% endblock %}

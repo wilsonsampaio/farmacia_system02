@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Entrar{% endblock %}
+{% block bodyclass %}pagina-login{% endblock %}
+
+{% block sem_layout %}
+<div class="login-wrap">
+  <div class="login-arte" aria-hidden="true">
+    <div class="bolha b1"></div><div class="bolha b2"></div><div class="bolha b3"></div>
+    <div class="bolha b4"></div><div class="bolha b5"></div>
+    <div class="login-arte-conteudo">
+      <div class="marca-grande">
+        <span class="marca-simbolo grande"><svg class="ic"><use href="#i-pill"/></svg></span>
+        <div>
+          <h1>FarmaciaSystem</h1>
+          <p>Gestão completa para a sua farmácia</p>
+        </div>
+      </div>
+      <ul class="lista-recursos">
+        <li><svg class="ic"><use href="#i-check"/></svg> PDV rápido com leitor de código de barras</li>
+        <li><svg class="ic"><use href="#i-check"/></svg> Fichas, bulas completas e fotos dos medicamentos</li>
+        <li><svg class="ic"><use href="#i-check"/></svg> Controle de lotes, validades e estoque mínimo</li>
+        <li><svg class="ic"><use href="#i-check"/></svg> Dashboard com vendas, giro e curva ABC</li>
+        <li><svg class="ic"><use href="#i-check"/></svg> Backup completo, restauração e importação de dados</li>
+      </ul>
+      <div class="login-arte-rodape">Uso em vários computadores pela rede local</div>
+    </div>
+  </div>
+
+  <div class="login-form-lado">
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% if mensagens %}
+        <div class="toasts toasts-estatico">
+          {% for categoria, texto in mensagens %}
+            <div class="toast toast-{{ categoria }}" data-toast>
+              <span class="toast-ic">{% if categoria == 'ok' %}✓{% elif categoria == 'erro' %}!{% else %}i{% endif %}</span>
+              <span class="toast-txt">{{ texto }}</span>
+              <button class="toast-fechar" aria-label="Fechar">×</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form class="login-card" method="post" autocomplete="on">
+      <div class="login-card-cab">
+        <span class="marca-simbolo"><svg class="ic"><use href="#i-pill"/></svg></span>
+        <h2>Bem-vindo de volta</h2>
+        <p>Entre com o seu usuário para acessar o sistema</p>
+      </div>
+
+      <label class="campo">
+        <span>Usuário</span>
+        <input type="text" name="login" value="{{ login }}" placeholder="seu.login" autofocus required>
+      </label>
+
+      <label class="campo">
+        <span>Senha</span>
+        <span class="senha-campo">
+          <input type="password" name="senha" id="senhaLogin" placeholder="••••••••" required>
+          <button type="button" class="olho" data-alvo="senhaLogin" aria-label="Mostrar senha">◉</button>
+        </span>
+      </label>
+
+      <button class="btn btn-primario btn-lg btn-bloco" type="submit">
+        Entrar no sistema <svg class="ic"><use href="#i-seta"/></svg>
+      </button>
+
+      <div class="login-rodape">
+        <span class="ponto-verde"></span> Servidor online · {{ empresa.nome }}
+      </div>
+    </form>
+    <p class="login-dica">Dica de acessos iniciais: <strong>admin / admin123</strong> ·
+      <strong>gerente / gerente123</strong> · <strong>caixa / caixa123</strong> — troque as senhas em Administração.</p>
+  </div>
+</div>
+{% endblock %}

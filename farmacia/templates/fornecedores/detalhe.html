@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}{{ fornecedor.razao_social }}{% endblock %}
+{% from 'partials/macros.html' import cabecalho, paginacao, badge %}
+
+{% block content %}
+<div class="detalhe-hero detalhe-hero-pessoa">
+  <div class="detalhe-info">
+    <div class="detalhe-tags">
+      {% if fornecedor.ativo == 0 %}{{ badge('Inativo', 'critico') }}{% else %}{{ badge('Ativo', 'ok') }}{% endif %}
+      {% if fornecedor.cnpj %}{{ badge('CNPJ ' ~ fornecedor.cnpj|cpf, 'neutro') }}{% endif %}
+    </div>
+    <h1>{{ fornecedor.razao_social }}</h1>
+    <p class="detalhe-principio">{{ fornecedor.nome_fantasia or 'Sem nome fantasia' }}
+      {% if fornecedor.inscricao_estadual %} · IE {{ fornecedor.inscricao_estadual }}{% endif %}</p>
+    <p class="detalhe-lab">
+      {{ fornecedor.telefone or 'Sem telefone' }}{% if fornecedor.email %} · {{ fornecedor.email }}{% endif %}
+      {% if fornecedor.contato_nome %} · Contato: {{ fornecedor.contato_nome }}{% endif %}
+    </p>
+    <p class="texto-suave">
+      {{ fornecedor.logradouro or '' }}{{ ', ' ~ fornecedor.numero if fornecedor.numero else '' }}
+      {{ '· ' ~ fornecedor.bairro if fornecedor.bairro else '' }}
+      {{ '· ' ~ fornecedor.cidade ~ '/' ~ fornecedor.uf if fornecedor.cidade else '' }}
+    </p>
+    {% if fornecedor.observacoes %}<p class="texto-quebra">📝 {{ fornecedor.observacoes }}</p>{% endif %}
+    <div class="detalhe-acoes">
+      <a class="btn btn-primario" href="{{ url_for('estoque.entrada') }}"><svg class="ic"><use href="#i-caixa"/></svg> Registrar entrada</a>
+      <a class="btn btn-secundario" href="{{ url_for('fornecedores.editar', fornecedor_id=fornecedor.id) }}"><svg class="ic"><use href="#i-editar"/></svg> Editar</a>
+      <form method="post" action="{{ url_for('fornecedores.excluir', fornecedor_id=fornecedor.id) }}" class="form-inline"
+            data-confirm="Desativar o fornecedor {{ fornecedor.razao_social }}?">
+        <button class="btn btn-perigo btn-ghost" type="submit">Desativar</button>
+      </form>
+    </div>
+  </div>
+  <aside class="detalhe-lateral">
+    <div class="info-bloco"><span>Total comprado</span><strong>{{ total_compras|brl }}</strong></div>
+    <div class="info-bloco"><span>Notas recebidas</span><strong>{{ entradas|length }}</strong></div>
+    <div class="info-bloco"><span>Produtos fornecidos</span><strong>{{ produtos|length }}</strong></div>
+    <div class="info-bloco"><span>Cadastrado em</span><strong>{{ fornecedor.criado_em|data }}</strong></div>
+  </aside>
+</div>
+
+<nav class="abas" data-abas>
+  <button type="button" class="aba ativo" data-aba="notas">Notas de entrada</button>
+  <button type="button" class="aba" data-aba="produtos">Produtos fornecidos <span class="aba-cont">{{ produtos|length }}</span></button>
+</nav>
+
+<section class="cartao aba-painel" data-painel="notas">
+  <header class="cartao-cab"><div><h2>Entradas de mercadoria</h2></div>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('relatorios.relatorio', slug='entradas') }}">Relatório</a></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Nota</th><th>Recebida em</th><th>Emissão</th><th class="num">Itens</th>
+        <th class="num">Total</th><th>Operador</th></tr></thead>
+      <tbody>
+      {% for e in entradas %}
+        <tr>
+          <td><a class="link-forte" href="{{ url_for('estoque.entrada_detalhe', entrada_id=e.id) }}">{{ e.numero or ('#' ~ e.id) }}</a></td>
+          <td>{{ e.data_recebimento|datahora }}</td>
+          <td>{{ e.data_emissao|data if e.data_emissao else '—' }}</td>
+          <td class="num">{{ e.itens if e.itens is defined else '—' }}</td>
+          <td class="num"><strong>{{ e.total|brl }}</strong></td>
+          <td>{{ e.usuario or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="vazio">Nenhuma entrada registrada.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ paginacao(page, pages, 'fornecedores.detalhe', {'fornecedor_id': fornecedor.id}) }}
+</section>
+
+<section class="cartao aba-painel" data-painel="produtos" hidden>
+  <header class="cartao-cab"><div><h2>Produtos já recebidos</h2></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Produto</th><th>Código</th><th class="num">Estoque</th><th class="num">Custo</th></tr></thead>
+      <tbody>
+      {% for p in produtos %}
+        <tr>
+          <td><a class="link-forte" href="{{ url_for('produtos.detalhe', produto_id=p.id) }}">{{ p.nome }}</a></td>
+          <td>{{ p.codigo }}</td>
+          <td class="num">{{ p.estoque }}</td>
+          <td class="num">{{ p.preco_custo|brl }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="vazio">Nenhum produto vinculado a este fornecedor.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

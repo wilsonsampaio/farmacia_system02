@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Entrada {{ entrada.numero or entrada.id }}{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho('Entrada ' ~ (entrada.numero or ('#' ~ entrada.id)),
+  'Recebida em ' ~ entrada.data_recebimento|datahora ~ ' · ' ~ (entrada.razao_social or 'Fornecedor não informado'),
+  '<button class="btn btn-ghost" type="button" onclick="window.print()"><svg class="ic"><use href="#i-imprimir"/></svg> Imprimir</button>
+   <a class="btn btn-primario" href="' ~ url_for('estoque.entrada') ~ '">Nova entrada</a>') }}
+
+<div class="grid grid-3">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Dados da nota</h2></div></header>
+    <div class="grade-campos grade-leitura">
+      <div class="info-bloco"><span>Número</span><strong>{{ entrada.numero or '—' }}</strong></div>
+      <div class="info-bloco"><span>Emissão</span><strong>{{ entrada.data_emissao|data if entrada.data_emissao else '—' }}</strong></div>
+      <div class="info-bloco"><span>Recebimento</span><strong>{{ entrada.data_recebimento|datahora }}</strong></div>
+      <div class="info-bloco"><span>Situação</span><strong>{{ badge(entrada.status|capitalize, 'ok') }}</strong></div>
+      <div class="info-bloco"><span>Operador</span><strong>{{ entrada.usuario or '—' }}</strong></div>
+      <div class="info-bloco"><span>Total</span><strong>{{ entrada.total|brl }}</strong></div>
+    </div>
+    {% if entrada.observacao %}
+    <footer class="cartao-rodape"><span class="info-rodape">{{ entrada.observacao }}</span></footer>
+    {% endif %}
+  </section>
+
+  <section class="cartao" style="grid-column: span 2">
+    <header class="cartao-cab"><div><h2>Itens recebidos</h2><p>{{ itens|length }} produto(s)</p></div></header>
+    <div class="tabela-scroll">
+      <table class="tabela">
+        <thead><tr><th>Produto</th><th>Código</th><th class="num">Qtd.</th><th>Lote</th>
+          <th>Validade</th><th class="num">Custo</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>
+        {% for i in itens %}
+          <tr>
+            <td><a class="link-forte" href="{{ url_for('produtos.detalhe', produto_id=i.produto_id) }}">{{ i.nome }}</a></td>
+            <td>{{ i.codigo }}</td>
+            <td class="num"><strong>{{ i.quantidade }}</strong></td>
+            <td>{{ i.lote or '—' }}</td>
+            <td>{{ i.criado_em|data }}</td>
+            <td class="num">{{ i.preco_custo|brl }}</td>
+            <td class="num"><strong>{{ (i.preco_custo * i.quantidade)|brl }}</strong></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="vazio">Sem itens vinculados.</td></tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr><th colspan="6" class="fim">Total</th><th class="num">{{ entrada.total|brl }}</th></tr></tfoot>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

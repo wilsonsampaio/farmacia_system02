@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Computadores conectados{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho('Computadores e terminais', 'Máquinas que acessaram o sistema',
+  '<a class="btn btn-ghost" href="' ~ url_for('admin.empresa') ~ '">Administração</a>') }}
+
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Terminais cadastrados</h2><p>{{ itens|length }} terminal(is)</p></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Terminal</th><th>Endereço IP</th><th>Último usuário</th>
+        <th>Último acesso</th><th>Cadastrado em</th></tr></thead>
+      <tbody>
+      {% for t in itens %}
+        <tr>
+          <td><strong>{{ t.nome }}</strong></td>
+          <td>{{ t.ip or '—' }}</td>
+          <td>{{ t.usuario or '—' }}</td>
+          <td>{{ t.ultimo_acesso|datahora if t.ultimo_acesso else '—' }}</td>
+          <td>{{ t.criado_em|datahora }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="vazio">Nenhum terminal registrado — faça login em cada computador.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="box-dica">
+  <strong>Uso em rede:</strong> cada computador que acessa o sistema registra um terminal com o nome
+  definido no cadastro do usuário (campo “Terminal / PDV”). Assim você identifica a origem de cada venda
+  no histórico e nos relatórios por operador.
+</div>
+{% endblock %}

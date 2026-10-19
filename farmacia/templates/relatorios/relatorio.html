@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}{{ titulo }}{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho(titulo, descricao,
+  '<a class="btn btn-ghost" href="' ~ url_for('relatorios.index') ~ '">Todos os relatórios</a>
+   <a class="btn btn-ghost" href="' ~ url_for('relatorios.relatorio_csv', slug=slug, de=de, ate=ate) ~ '"><svg class="ic"><use href="#i-venda"/></svg> Exportar CSV</a>
+   <button class="btn btn-primario" type="button" onclick="window.print()"><svg class="ic"><use href="#i-imprimir"/></svg> Imprimir</button>') }}
+
+<form class="filtros" method="get">
+  <label class="campo-inline"><span>De</span><input type="date" name="de" value="{{ de }}"></label>
+  <label class="campo-inline"><span>Até</span><input type="date" name="ate" value="{{ ate }}"></label>
+  <button class="btn btn-primario" type="submit">Aplicar período</button>
+  <a class="btn btn-ghost" href="{{ url_for('relatorios.relatorio', slug=slug) }}">Padrão</a>
+  <span class="texto-suave">{{ registros }} registro(s) no período de {{ de|data if de else 'início' }} até {{ ate|data if ate else 'hoje' }}.</span>
+</form>
+
+{% if rel.totais %}
+<div class="kpis kpis-compactos">
+  {% for chave, valor in rel.totais.items() %}
+    <div class="kpi">
+      <div class="kpi-txt">
+        <span class="kpi-rot">{{ {'qtd':'Vendas','total':'Faturamento','ticket':'Ticket médio',
+            'subtotal':'Subtotal','desconto':'Descontos','receita':'Receita','custo':'Custo',
+            'lucro':'Lucro','quantidade':'Quantidade','valor':'Valor','estoque':'Estoque',
+            'valor_custo':'Valor de custo','valor_venda':'Valor de venda','sugestao':'Sugestão de compra',
+            'custo_sugestao':'Custo sugerido','compras':'Compras','total_gasto':'Total gasto',
+            'saldo_credito':'Em aberto','lancamentos':'Lançamentos','vendas':'Vendas',
+            'faturamento':'Faturamento','valor_estoque':'Valor em estoque','itens':'Itens',
+            'receita':'Receita','custo_total':'Custo total','total_compras':'Total comprado'
+            }.get(chave, chave|replace('_',' ')) }}</span>
+        <strong class="kpi-val">
+          {% if chave in ['total','ticket','subtotal','desconto','receita','lucro','valor','valor_custo',
+                          'valor_venda','custo_sugestao','total_gasto','saldo_credito','faturamento',
+                          'custo_total','valor_estoque'] %}
+            {{ valor|brl }}
+          {% else %}
+            {{ valor|inteiro }}
+          {% endif %}
+        </strong>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if rel.grafico %}
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Comparativo</h2></div></header>
+  <div class="grafico">{{ rel.grafico|safe }}</div>
+</section>
+{% endif %}
+
+<section class="cartao">
+  <header class="cartao-cab">
+    <div><h2>{{ titulo }}</h2><p>{{ rel.linhas|length }} linha(s)</p></div>
+    {% if rel.fim_tabela is defined and rel.fim_tabela %}<span class="badge badge-azul">ordenado por data</span>{% endif %}
+  </header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-relatorio">
+      <thead>
+        <tr>
+          {% for chave, rotulo, tipo in rel.colunas %}
+            <th class="{{ 'num' if tipo in ['num','moeda','percent'] else '' }}">{{ rotulo }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+      {% for linha in rel.linhas %}
+        <tr data-fade>
+          {% for chave, rotulo, tipo in rel.colunas %}
+            <td class="{{ 'num' if tipo in ['num','moeda','percent'] else '' }}">
+              {% set valor = linha.get(chave) %}
+              {% if tipo == 'moeda' %}
+                <strong>{{ valor|brl }}</strong>
+              {% elif tipo == 'percent' %}
+                {{ valor|percentual }}
+              {% elif tipo == 'data' %}
+                {{ valor|data }}
+              {% elif tipo == 'datahora' %}
+                {{ valor|datahora }}
+              {% elif tipo == 'cpf' %}
+                {{ valor|cpf if valor else '—' }}
+              {% elif tipo == 'situacao' %}
+                {% if valor in ['Sem estoque','Vencido','Vencida','Crítico','Baixo'] %}
+                  {{ badge(valor, 'critico') }}
+                {% elif valor in ['Atenção','Baixo'] %}{{ badge(valor, 'alerta') }}
+                {% elif valor in ['Normal','Em dia'] %}{{ badge(valor, 'ok') }}
+                {% else %}{{ badge(valor or '—', 'neutro') }}{% endif %}
+              {% elif valor is none or valor == '' %}
+                —
+              {% elif tipo == 'num' %}
+                {{ valor|inteiro }}
+              {% else %}
+                {{ valor }}
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+      {% else %}
+        <tr><td colspan="{{ rel.colunas|length }}" class="vazio">Nenhum dado no período selecionado.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="{{ params.get('tema', 'claro') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="">
+  <title>{% block title %}{{ empresa.nome }}{% endblock %} · FarmaciaSystem</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+</head>
+<body class="{% block bodyclass %}{% endblock %}">
+{% from 'partials/macros.html' import badge %}
+
+{# ---------------- ícones (sprite SVG embutido) ---------------- #}
+<svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></symbol>
+  <symbol id="i-pdv" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M6 8h5M6 11h3"/><path d="M7 20h10"/><path d="M17 10.5h1.5"/></symbol>
+  <symbol id="i-pill" viewBox="0 0 24 24"><rect x="2.5" y="8.5" width="19" height="7" rx="3.5" transform="rotate(-45 12 12)"/><path d="M9 9l6 6"/></symbol>
+  <symbol id="i-caixa" viewBox="0 0 24 24"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></symbol>
+  <symbol id="i-cliente" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></symbol>
+  <symbol id="i-fornecedor" viewBox="0 0 24 24"><path d="M2 7h11v9H2z"/><path d="M13 10h4l4 3v3h-8z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="i-venda" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></symbol>
+  <symbol id="i-grafico" viewBox="0 0 24 24"><path d="M4 20V4"/><path d="M4 20h16"/><rect x="7" y="12" width="3" height="5"/><rect x="12" y="8" width="3" height="9"/><rect x="17" y="5" width="3" height="12"/></symbol>
+  <symbol id="i-backup" viewBox="0 0 24 24"><path d="M6.5 18A4.5 4.5 0 0 1 6 9.06 6 6 0 0 1 17.7 8.5 4 4 0 0 1 17.5 18z"/><path d="M12 12v5M9.5 14.5 12 12l2.5 2.5"/></symbol>
+  <symbol id="i-engrenagem" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.46 1.6 1.6 0 0 0-1.77.32l-.06.06A2 2 0 1 1 4.4 17l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.46-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06A2 2 0 1 1 7 4.4l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06A2 2 0 1 1 19.6 7l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-sair" viewBox="0 0 24 24"><path d="M14 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="M17 8l4 4-4 4M21 12H10"/></symbol>
+  <symbol id="i-busca" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19z"/><path d="M12 9v5M12 17.2v.1"/></symbol>
+  <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-editar" viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/><path d="M14.5 5.5 18.5 9.5"/></symbol>
+  <symbol id="i-excluir" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-imprimir" viewBox="0 0 24 24"><path d="M7 9V3h10v6"/><rect x="4" y="9" width="16" height="7" rx="2"/><path d="M7 14h10v7H7z"/></symbol>
+  <symbol id="i-foto" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.8"/><path d="m4 17 5-4.5 4 3.5 3-2.5 4 3.5"/></symbol>
+  <symbol id="i-lupa" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4.5 4.5"/></symbol>
+  <symbol id="i-seta" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="7.5" r="4"/><path d="M4.5 20.5c1.4-4 4.2-6 7.5-6s6.1 2 7.5 6"/></symbol>
+  <symbol id="i-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></symbol>
+</svg>
+
+{% if usuario %}
+<div class="app">
+  {# ---------------- barra lateral ---------------- #}
+  <aside class="sidebar" id="sidebar">
+    <div class="marca">
+      {% if params.get('empresa_logo') %}
+        <img src="{{ media_url(params.get('empresa_logo'), 'empresa') }}" alt="Logo" class="marca-logo">
+      {% else %}
+        <span class="marca-simbolo"><svg class="ic"><use href="#i-pill"/></svg></span>
+      {% endif %}
+      <span class="marca-txt">
+        <strong>{{ empresa.nome }}</strong>
+        <small>{{ empresa.crf or 'Farmácia' }}</small>
+      </span>
+      <button class="btn-collapse" id="btnColapsar" title="Recolher menu" aria-label="Recolher menu">‹</button>
+    </div>
+
+    <nav class="menu" id="menu">
+      <a class="menu-item {% if request.endpoint == 'dashboard.index' %}ativo{% endif %}"
+         href="{{ url_for('dashboard.index') }}">
+        <svg class="ic"><use href="#i-home"/></svg><span>Dashboard</span></a>
+
+      <a class="menu-item menu-destaque {% if request.blueprint == 'pdv' %}ativo{% endif %}"
+         href="{{ url_for('pdv.index') }}">
+        <svg class="ic"><use href="#i-pdv"/></svg><span>PDV · Caixa</span>
+        <kbd>F2</kbd></a>
+
+      <div class="menu-grupo"><span>Cadastros</span></div>
+      <a class="menu-item {% if request.blueprint == 'produtos' %}ativo{% endif %}"
+         href="{{ url_for('produtos.lista') }}">
+        <svg class="ic"><use href="#i-pill"/></svg><span>Medicamentos</span></a>
+      <a class="menu-item {% if request.blueprint == 'clientes' %}ativo{% endif %}"
+         href="{{ url_for('clientes.lista') }}">
+        <svg class="ic"><use href="#i-cliente"/></svg><span>Clientes</span></a>
+      <a class="menu-item {% if request.blueprint == 'fornecedores' %}ativo{% endif %}"
+         href="{{ url_for('fornecedores.lista') }}">
+        <svg class="ic"><use href="#i-fornecedor"/></svg><span>Fornecedores</span></a>
+
+      <div class="menu-grupo"><span>Operação</span></div>
+      <a class="menu-item {% if request.blueprint == 'estoque' %}ativo{% endif %}"
+         href="{{ url_for('estoque.index') }}">
+        <svg class="ic"><use href="#i-caixa"/></svg><span>Estoque</span>
+        {% if alertas.estoque or alertas.vencimento %}
+          <span class="menu-badge">{{ alertas.estoque + alertas.vencimento }}</span>{% endif %}</a>
+      <a class="menu-item {% if request.blueprint == 'vendas' %}ativo{% endif %}"
+         href="{{ url_for('vendas.lista') }}">
+        <svg class="ic"><use href="#i-venda"/></svg><span>Vendas</span></a>
+      <a class="menu-item {% if request.blueprint == 'relatorios' %}ativo{% endif %}"
+         href="{{ url_for('relatorios.index') if pode('relatorios') else url_for('dashboard.index') }}">
+        <svg class="ic"><use href="#i-grafico"/></svg><span>Relatórios</span></a>
+
+      {% if pode('administracao') or usuario.perfil == 'admin' %}
+      <div class="menu-grupo"><span>Sistema</span></div>
+      <a class="menu-item {% if request.blueprint == 'backup' %}ativo{% endif %}"
+         href="{{ url_for('backup.index') }}">
+        <svg class="ic"><use href="#i-backup"/></svg><span>Backup</span>
+        <span class="menu-ponto" title="Backup automático ativo {% if params.get('backup_automatico') == '1' %}{% else %}(desativado){% endif %}"></span></a>
+      <a class="menu-item {% if request.blueprint == 'admin' %}ativo{% endif %}"
+         href="{{ url_for('admin.empresa') }}">
+        <svg class="ic"><use href="#i-engrenagem"/></svg><span>Administração</span></a>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-rodape">
+      <div class="alerta-rapido" {% if not alertas.estoque and not alertas.vencimento %}hidden{% endif %}>
+        <svg class="ic"><use href="#i-alerta"/></svg>
+        <div>
+          {% if alertas.estoque %}<strong>{{ alertas.estoque }}</strong> produto(s) com estoque baixo{% endif %}
+          {% if alertas.estoque and alertas.vencimento %}<br>{% endif %}
+          {% if alertas.vencimento %}<strong>{{ alertas.vencimento }}</strong> lote(s) próximos do vencimento{% endif %}
+        </div>
+      </div>
+      <div class="usuario-card">
+        <div class="avatar">{{ usuario.nome[:1]|upper }}</div>
+        <div class="usuario-info">
+          <strong title="{{ usuario.nome }}">{{ usuario.nome.split(' ')[0] }}</strong>
+          <small>{{ {'admin':'Administrador','gerente':'Gerente','caixa':'Operador'}[usuario.perfil] }}</small>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="icone-btn" title="Sair do sistema">
+          <svg class="ic"><use href="#i-sair"/></svg></a>
+      </div>
+    </div>
+  </aside>
+
+  {# ---------------- conteúdo ---------------- #}
+  <div class="principal">
+    <header class="topo">
+      <button class="icone-btn mobile-only" id="btnMenu" aria-label="Abrir menu">☰</button>
+      <form class="busca-global" action="{{ url_for('produtos.lista') }}" method="get" role="search">
+        <svg class="ic"><use href="#i-busca"/></svg>
+        <input type="search" name="q" id="buscaGlobal" placeholder="Buscar medicamento, cliente, código de barras…"
+               autocomplete="off" value="{{ request.args.get('q','') if request.blueprint == 'produtos' else '' }}">
+        <kbd>Ctrl K</kbd>
+      </form>
+      <div class="topo-acoes">
+        <span class="terminal-chip" title="Terminal atual">{{ session.get('terminal','PDV') }}</span>
+        <button class="icone-btn" id="btnTema" title="Alternar tema" aria-label="Alternar tema">
+          <svg class="ic tema-claro"><use href="#i-moon"/></svg>
+          <svg class="ic tema-escuro"><use href="#i-sun"/></svg>
+        </button>
+        <div class="dropdown">
+          <button class="chip-usuario" data-dropdown="menuUsuario">
+            <span class="avatar avatar-sm">{{ usuario.nome[:1]|upper }}</span>
+            <span class="nome-oculto">{{ usuario.nome.split(' ')[0] }}</span>
+          </button>
+          <div class="dropdown-menu" id="menuUsuario">
+            <div class="dropdown-cab">
+              <strong>{{ usuario.nome }}</strong>
+              <small>{{ usuario.login }} · {{ {'admin':'Administrador','gerente':'Gerente','caixa':'Operador de caixa'}[usuario.perfil] }}</small>
+            </div>
+            <a class="dropdown-item" href="{{ url_for('auth.trocar_senha') }}">Trocar minha senha</a>
+            {% if usuario.perfil == 'admin' %}
+            <a class="dropdown-item" href="{{ url_for('admin.usuarios') }}">Gerenciar usuários</a>
+            <a class="dropdown-item" href="{{ url_for('admin.terminais') }}">Computadores conectados</a>
+            {% endif %}
+            <div class="dropdown-div"></div>
+            <a class="dropdown-item perigo" href="{{ url_for('auth.logout') }}">Sair do sistema</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="conteudo">
+      {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% if mensagens %}
+          <div class="toasts" id="toasts">
+            {% for categoria, texto in mensagens %}
+              <div class="toast toast-{{ categoria }}" data-toast>
+                <span class="toast-ic">{% if categoria == 'ok' %}✓{% elif categoria == 'erro' %}!{% else %}i{% endif %}</span>
+                <span class="toast-txt">{{ texto }}</span>
+                <button class="toast-fechar" aria-label="Fechar">×</button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="rodape">
+      <span><strong>{{ empresa.nome }}</strong> · CNPJ {{ empresa.cnpj }} · {{ empresa.cidade }}</span>
+      <span>FarmaciaSystem v1.0 · {{ ano_atual }}</span>
+    </footer>
+  </div>
+</div>
+
+<div class="overlay-menu" id="overlayMenu" hidden></div>
+
+{# busca global em tela cheia #}
+<div class="modal modal-busca" id="modalBusca" hidden>
+  <div class="modal-dialogo modal-lg">
+    <div class="modal-cab">
+      <h3>Busca rápida</h3>
+      <button class="fecha-modal" data-fecha aria-label="Fechar">×</button>
+    </div>
+    <div class="modal-corpo">
+      <form action="{{ url_for('produtos.lista') }}" method="get" class="busca-caixa">
+        <span class="lupa">⌕</span>
+        <input type="search" name="q" id="buscaGlobalModal" placeholder="Digite o nome, princípio ativo ou código de barras…" autofocus>
+        <button class="btn btn-primario" type="submit">Buscar</button>
+      </form>
+      <div id="resultadosBusca" class="resultados-busca"></div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+  {% block sem_layout %}{% endblock %}
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

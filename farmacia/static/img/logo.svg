@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f7cff"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#g)"/>
+  <!-- cruz da farmácia -->
+  <path d="M26 14h12v12h12v12H38v12H26V38H14V26h12z" fill="#fff" opacity=".95"/>
+  <!-- cápsula -->
+  <g transform="rotate(-45 32 32)">
+    <rect x="18" y="27" width="28" height="10" rx="5" fill="#fff"/>
+    <path d="M32 27h9a5 5 0 0 1 0 10H32z" fill="#dbeafe"/>
+  </g>
+</svg>

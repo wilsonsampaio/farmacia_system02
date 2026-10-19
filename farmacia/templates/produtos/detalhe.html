@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+{% block title %}{{ produto.nome }}{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge, situacao_tarja, estoque_badge %}
+
+{% block content %}
+<div class="detalhe-hero">
+  <div class="detalhe-foto">
+    {% if fotos %}
+      <img class="foto-principal" id="fotoPrincipal" src="{{ media_url(fotos[0].arquivo) }}" alt="{{ produto.nome }}">
+      {% if fotos|length > 1 %}
+      <div class="miniaturas">
+        {% for f in fotos %}
+          <button class="miniatura {% if loop.first %}ativo{% endif %}" data-src="{{ media_url(f.arquivo) }}">
+            <img src="{{ media_url(f.arquivo) }}" alt="Foto {{ loop.index }}"></button>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% else %}
+      <div class="sem-foto sem-foto-g"><svg class="ic ic-lg"><use href="#i-pill"/></svg><span>Sem foto</span>
+        <a class="btn btn-ghost btn-xs" href="#abas" data-aba-link="fotos">Enviar foto</a></div>
+    {% endif %}
+  </div>
+
+  <div class="detalhe-info">
+    <div class="detalhe-tags">
+      {{ situacao_tarja(produto.tarja) }}
+      {% if produto.controlado %}{{ badge('Controlado · 344/98', 'preta') }}{% endif %}
+      {% if produto.receita_obrigatoria %}{{ badge('Retém receita', 'vermelha') }}{% endif %}
+      {% if produto.ativo == 0 %}{{ badge('Inativo', 'critico') }}{% endif %}
+      {{ estoque_badge(produto.estoque, produto.estoque_minimo) }}
+    </div>
+    <h1>{{ produto.nome }}</h1>
+    <p class="detalhe-principio">{{ produto.principio_ativo or 'Princípio ativo não informado' }}
+      {% if produto.concentracao %} · <strong>{{ produto.concentracao }}</strong>{% endif %}</p>
+    <p class="detalhe-lab">{{ produto.laboratorio or 'Laboratório não informado' }}
+      {% if produto.apresentacao %} · {{ produto.apresentacao }}{% endif %}
+      {% if produto.classe_terapeutica %} · <span class="chip">{{ produto.classe_terapeutica }}</span>{% endif %}</p>
+
+    <div class="detalhe-precos">
+      <div class="preco-bloco"><small>Preço de venda</small><strong>{{ produto.preco_venda|brl }}</strong></div>
+      <div class="preco-bloco"><small>Preço de custo</small><strong>{{ produto.preco_custo|brl }}</strong></div>
+      <div class="preco-bloco">
+        <small>Margem</small>
+        <strong>{% if produto.preco_custo > 0 %}{{ (((produto.preco_venda - produto.preco_custo) / produto.preco_custo) * 100)|percentual }}{% else %}—{% endif %}</strong>
+      </div>
+      <div class="preco-bloco"><small>Valor em estoque</small>
+        <strong>{{ (produto.estoque * produto.preco_custo)|brl }}</strong></div>
+    </div>
+
+    <div class="detalhe-acoes">
+      <a class="btn btn-primario" href="{{ url_for('pdv.index') }}"><svg class="ic"><use href="#i-pdv"/></svg> Vender no PDV</a>
+      {% if pode('produtos') %}
+      <a class="btn btn-secundario" href="{{ url_for('produtos.editar', produto_id=produto.id) }}"><svg class="ic"><use href="#i-editar"/></svg> Editar ficha</a>
+      {% endif %}
+      {% if pode('estoque') %}
+      <button class="btn btn-ghost" type="button" data-abre-modal="modalAjuste"><svg class="ic"><use href="#i-caixa"/></svg> Ajustar estoque</button>
+      <a class="btn btn-ghost" href="{{ url_for('estoque.entrada') }}">Entrada de nota</a>
+      {% endif %}
+      {% if pode('relatorios') %}
+      <a class="btn btn-ghost" href="{{ url_for('relatorios.relatorio', slug='itens') }}">Relatórios</a>
+      {% endif %}
+      {% if pode('produtos') %}
+      {% if produto.ativo %}
+      <form method="post" action="{{ url_for('produtos.excluir', produto_id=produto.id) }}"
+            class="form-inline" data-confirm="Desativar '{{ produto.nome }}'? Ele deixará de aparecer nas vendas.">
+        <input type="hidden" name="confirmar" value="{{ produto.nome }}">
+        <button class="btn btn-perigo btn-ghost" type="submit"><svg class="ic"><use href="#i-excluir"/></svg> Desativar</button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('produtos.reativar', produto_id=produto.id) }}" class="form-inline">
+        <button class="btn btn-ok" type="submit">Reativar produto</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <aside class="detalhe-lateral">
+    <div class="info-bloco"><span>Código interno</span><strong>{{ produto.codigo }}</strong></div>
+    <div class="info-bloco"><span>Código de barras</span><strong>{{ produto.ean or '—' }}</strong></div>
+    <div class="info-bloco"><span>Estoque atual</span>
+      <strong class="{{ 'texto-critico' if produto.estoque <= 0 else ('texto-alerta' if produto.estoque <= produto.estoque_minimo else '') }}">{{ produto.estoque }} {{ produto.unidade }}</strong></div>
+    <div class="info-bloco"><span>Estoque mínimo</span><strong>{{ produto.estoque_minimo }}</strong></div>
+    <div class="info-bloco"><span>Localização</span><strong>{{ produto.localizacao or '—' }}</strong></div>
+    <div class="info-bloco"><span>Registro ANVISA</span><strong>{{ produto.registro_anvisa or '—' }}</strong></div>
+    <div class="info-bloco"><span>Total vendido</span>
+      <strong>{{ total_vendido.qtd|inteiro }} un. · {{ total_vendido.valor|brl }}</strong></div>
+    <div class="info-bloco"><span>Cadastrado em</span><strong>{{ produto.criado_em|datahora }}</strong></div>
+  </aside>
+</div>
+
+<nav class="abas" id="abas" data-abas>
+  <button type="button" class="aba ativo" data-aba="bula">Bula</button>
+  <button type="button" class="aba" data-aba="estoque">Lotes e validade <span class="aba-cont">{{ lotes|length }}</span></button>
+  <button type="button" class="aba" data-aba="mov">Movimentações <span class="aba-cont">{{ movimentos|length }}</span></button>
+  <button type="button" class="aba" data-aba="vendas">Histórico de vendas</button>
+  <button type="button" class="aba" data-aba="fotos">Fotos <span class="aba-cont">{{ fotos|length }}</span></button>
+</nav>
+
+{# ---------------- bula ---------------- #}
+<section class="cartao aba-painel" data-painel="bula">
+  <header class="cartao-cab">
+    <div><h2>Bula do medicamento</h2>
+      <p>{% if bula and bula.atualizada_em %}Atualizada em {{ bula.atualizada_em|datahora }}{% else %}Bula ainda não preenchida — edite a ficha para completar.{% endif %}</p></div>
+    {% if pode('produtos') %}
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('produtos.editar', produto_id=produto.id) }}#abas">Editar bula</a>
+    {% endif %}
+  </header>
+  {% if bula %}
+  <div class="bula">
+    {% set blocos = [
+      ('Indicações', bula.indicacoes, 'Para que serve este medicamento'),
+      ('Posologia e modo de usar', bula.posologia, 'Como tomar'),
+      ('Contraindicações', bula.contraindicacoes, 'Quem não deve usar'),
+      ('Reações adversas', bula.efeitos_adversos, 'Efeitos colaterais possíveis'),
+      ('Advertências e precauções', bula.advertencias, 'Cuidados durante o uso'),
+      ('Interações medicamentosas', bula.interacoes, 'Combinar com outros remédios'),
+      ('Gravidez e lactação', bula.gravidez, 'Uso durante a gestação'),
+      ('Sobredosagem', bula.sobredoagem, 'Em caso de excesso'),
+      ('Armazenamento', bula.armazenamento, 'Como conservar'),
+      ('Excipientes', bula.excipientes, 'Composição do medicamento'),
+    ] %}
+    {% for titulo, texto, resumo in blocos %}
+      {% if texto %}
+      <article class="bula-bloco" data-fade>
+        <h3>{{ titulo }}<small>{{ resumo }}</small></h3>
+        <div class="bula-texto">{{ texto|e|replace('\n', '<br>')|safe }}</div>
+      </article>
+      {% endif %}
+    {% endfor %}
+    {% if bula.link_bula %}
+      <p class="bula-link">📄 <a href="{{ bula.link_bula }}" target="_blank" rel="noopener">Abrir bula oficial em PDF</a></p>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="vazio">Nenhuma informação de bula cadastrada para este medicamento.
+    {% if pode('produtos') %}<a href="{{ url_for('produtos.editar', produto_id=produto.id) }}">Preencher agora</a>.{% endif %}</p>
+  {% endif %}
+  <footer class="cartao-rodape">
+    <span class="info-rodape">Texto informativo para orientação do cliente — a bula oficial é sempre o documento de referência.</span>
+  </footer>
+</section>
+
+{# ---------------- lotes ---------------- #}
+<section class="cartao aba-painel" data-painel="estoque" hidden>
+  <header class="cartao-cab"><div><h2>Lotes e validade</h2><p>Baixas são realizadas por FIFO (validade mais próxima primeiro)</p></div>
+    {% if pode('estoque') %}
+    <a class="btn btn-primario btn-sm" href="{{ url_for('estoque.entrada') }}">Nova entrada</a>
+    {% endif %}</header>
+  <div class="tabela-scroll">
+    <table class="tabela">
+      <thead><tr><th>Lote</th><th>Validade</th><th class="num">Quantidade</th><th class="num">Custo</th>
+        <th>Fornecedor</th><th>Nota</th><th></th></tr></thead>
+      <tbody>
+      {% for l in lotes %}
+        <tr>
+          <td><strong>{{ l.lote or '—' }}</strong></td>
+          <td>{{ l.validade|data if l.validade else '—' }}
+            {% if l.validade %}
+              {% set dias = (l.validade|dias) %}
+              {% if dias is not none and dias < 0 %}{{ badge('vencido', 'critico') }}
+              {% elif dias is not none and dias <= 60 %}{{ badge(dias ~ ' dias', 'alerta') }}{% endif %}
+            {% endif %}</td>
+          <td class="num"><strong>{{ l.quantidade }}</strong></td>
+          <td class="num">{{ l.preco_custo|brl }}</td>
+          <td>{{ l.razao_social or '—' }}</td>
+          <td>{{ l.nota_fiscal or '—' }}</td>
+          <td class="fim">
+            {% if pode('estoque') %}
+            <form method="post" action="{{ url_for('estoque.ajustar_lote', lote_id=l.id) }}" class="form-inline">
+              <input type="number" name="quantidade" value="{{ l.quantidade }}" min="0" class="input-mini" title="Nova quantidade">
+              <button class="btn btn-ghost btn-xs" type="submit">Ajustar</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="vazio">Sem lotes ativos. Registre uma entrada de nota fiscal.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# ---------------- movimentações ---------------- #}
+<section class="cartao aba-painel" data-painel="mov" hidden>
+  <header class="cartao-cab"><div><h2>Movimentações de estoque</h2><p>Entradas, vendas, perdas, ajustes e devoluções</p></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Data/hora</th><th>Tipo</th><th class="num">Quantidade</th><th class="num">Saldo após</th>
+        <th>Referência</th><th>Usuário</th><th>Observação</th></tr></thead>
+      <tbody>
+      {% for m in movimentos %}
+        <tr>
+          <td>{{ m.criado_em|datahora }}</td>
+          <td>{{ badge({'entrada':'Entrada','venda':'Venda','ajuste':'Ajuste','perda':'Perda',
+                        'devolucao':'Devolução','cancelamento':'Cancelamento'}.get(m.tipo, m.tipo),
+                      {'entrada':'ok','venda':'azul','ajuste':'alerta','perda':'critico',
+                       'devolucao':'neutro','cancelamento':'critico'}.get(m.tipo, 'neutro')) }}</td>
+          <td class="num {{ 'mais' if m.quantidade > 0 else 'menos' }}">
+            <strong>{{ '+' if m.quantidade > 0 else '' }}{{ m.quantidade }}</strong></td>
+          <td class="num">{{ m.saldo_apos if m.saldo_apos is not none else '—' }}</td>
+          <td>{{ m.tipo_ref or '—' }}{% if m.ref_id %} #{{ m.ref_id }}{% endif %}</td>
+          <td>{{ m.usuario or 'sistema' }}</td>
+          <td class="obs">{{ m.observacao or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="vazio">Nenhuma movimentação registrada.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# ---------------- vendas ---------------- #}
+<section class="cartao aba-painel" data-painel="vendas" hidden>
+  <header class="cartao-cab"><div><h2>Vendas deste medicamento</h2>
+    <p>{{ total_vendido.qtd|inteiro }} unidade(s) · {{ total_vendido.valor|brl }} faturados</p></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Venda</th><th>Data</th><th>Cliente</th><th class="num">Qtd.</th>
+        <th class="num">Unitário</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>
+      {% for v in vendas %}
+        <tr>
+          <td><a class="link-forte" href="{{ url_for('vendas.detalhe', venda_id=v.id) }}">{{ v.numero }}</a></td>
+          <td>{{ v.data|datahora }}</td>
+          <td>{{ v.cliente or 'Consumidor' }}</td>
+          <td class="num">{{ v.quantidade }}</td>
+          <td class="num">{{ v.preco_unitario|brl }}</td>
+          <td class="num"><strong>{{ v.subtotal|brl }}</strong></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="vazio">Este medicamento ainda não foi vendido.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# ---------------- fotos ---------------- #}
+<section class="cartao aba-painel" data-painel="fotos" hidden>
+  <header class="cartao-cab"><div><h2>Fotos do medicamento</h2><p>Envie a foto da caixa para identificação rápida no caixa</p></div></header>
+  {% if pode('produtos') %}
+  <form method="post" action="{{ url_for('produtos.enviar_foto', produto_id=produto.id) }}"
+        enctype="multipart/form-data" class="envio-foto">
+    <label class="drop-foto">
+      <input type="file" name="foto" accept="image/*" required>
+      <div class="drop-foto-txt">
+        <svg class="ic ic-lg"><use href="#i-foto"/></svg>
+        <strong>Escolher imagem</strong>
+        <small>JPG, PNG ou WEBP</small>
+      </div>
+      <img class="previa" alt="Prévia" hidden>
+    </label>
+    <button class="btn btn-primario" type="submit">Enviar foto</button>
+  </form>
+  {% endif %}
+  <div class="galeria">
+    {% for f in fotos %}
+    <figure class="foto-item {% if f.principal %}principal{% endif %}">
+      <img src="{{ media_url(f.arquivo) }}" alt="Foto {{ loop.index }}" loading="lazy">
+      <figcaption>{% if f.principal %}<span class="badge badge-ok">Principal</span>{% endif %}</figcaption>
+      {% if pode('produtos') %}
+      <div class="foto-acoes">
+        {% if not f.principal %}
+        <form method="post" action="{{ url_for('produtos.foto_principal_acao', produto_id=produto.id, foto_id=f.id) }}">
+          <button class="btn btn-ghost btn-xs" type="submit">Principal</button></form>
+        {% endif %}
+        <form method="post" action="{{ url_for('produtos.excluir_foto', produto_id=produto.id, foto_id=f.id) }}"
+              data-confirm="Remover esta foto?">
+          <button class="btn btn-perigo btn-xs" type="submit">Remover</button></form>
+      </div>
+      {% endif %}
+    </figure>
+    {% else %}<p class="vazio">Nenhuma foto enviada.</p>{% endfor %}
+  </div>
+</section>
+
+{% if produto.observacoes %}
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Observações internas</h2></div></header>
+  <p class="texto-quebra">{{ produto.observacoes }}</p>
+</section>
+{% endif %}
+
+{# ---------------- modal de ajuste ---------------- #}
+{% if pode('estoque') %}
+<div class="modal" id="modalAjuste" hidden>
+  <div class="modal-dialogo">
+    <div class="modal-cab">
+      <h3>Ajustar estoque de {{ produto.nome }}</h3>
+      <button class="fecha-modal" data-fecha aria-label="Fechar">×</button>
+    </div>
+    <form method="post" action="{{ url_for('produtos.ajuste', produto_id=produto.id) }}">
+      <div class="modal-corpo">
+        <p class="texto-suave">Saldo atual: <strong>{{ produto.estoque }}</strong> {{ produto.unidade }}.
+          Informe a contagem real (inventário).</p>
+        <label class="campo"><span>Nova quantidade contada</span>
+          <input type="number" name="novo_saldo" value="{{ produto.estoque }}" min="0" required autofocus></label>
+        <label class="campo"><span>Motivo do ajuste</span>
+          <input type="text" name="motivo" placeholder="Ex.: inventário mensal, perda, quebra"></label>
+      </div>
+      <div class="modal-acoes">
+        <button class="btn btn-ghost" type="button" data-fecha>Cancelar</button>
+        <button class="btn btn-primario" type="submit">Confirmar ajuste</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

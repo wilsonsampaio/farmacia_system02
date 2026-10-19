@@ -1,0 +1,12 @@
+<div class="erro-wrap">
+  <div class="cartao centralizado erro-card">
+    <div class="erro-codigo {{ classe|default('') }}">{{ codigo }}</div>
+    <div class="vazio-icone">{{ icone|default('')|safe }}</div>
+    <h2>{{ titulo }}</h2>
+    <p>{{ mensagem }}</p>
+    <div class="acoes centralizado-acoes">
+      <a class="btn btn-primario" href="{{ url }}">{{ botao|default('Voltar ao início') }}</a>
+      {% if extra %}<span class="texto-suave">{{ extra }}</span>{% endif %}
+    </div>
+  </div>
+</div>

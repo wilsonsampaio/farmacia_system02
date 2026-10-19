@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge, estoque_badge %}
+
+{% block content %}
+{{ cabecalho('Dashboard', 'Visão geral da farmácia · ' ~ (hoje|data) ~ ' · ' ~ empresa.nome,
+  '<a class="btn btn-primario" href="' ~ url_for('pdv.index') ~ '"><svg class="ic"><use href="#i-pdv"/></svg> Abrir PDV</a>
+   <a class="btn btn-ghost" href="' ~ url_for('estoque.entrada') ~ '">Nova entrada</a>
+   <a class="btn btn-ghost" href="' ~ url_for('clientes.novo') ~ '">Novo cliente</a>') }}
+
+{# ---------------- indicadores ---------------- #}
+<div class="kpis">
+  <div class="kpi destaque-sweep">
+    <div class="kpi-ic kpi-azul"><svg class="ic"><use href="#i-venda"/></svg></div>
+    <div class="kpi-txt">
+      <span class="kpi-rot">Vendas de hoje</span>
+      <strong class="kpi-val">{{ kpis.vendas_hoje|brl }}</strong>
+      <small class="kpi-sub">
+        {% if kpis.variacao >= 0 %}<span class="var-pos">▲ {{ '%.1f'|format(kpis.variacao) }}%</span>
+        {% else %}<span class="var-neg">▼ {{ '%.1f'|format(kpis.variacao) }}%</span>{% endif %}
+        vs. ontem ({{ kpis.vendas_ontem|brl }}) · {{ kpis.qtd_hoje }} venda(s)
+      </small>
+    </div>
+  </div>
+
+  <div class="kpi">
+    <div class="kpi-ic kpi-verde"><svg class="ic"><use href="#i-grafico"/></svg></div>
+    <div class="kpi-txt">
+      <span class="kpi-rot">Faturamento no mês</span>
+      <strong class="kpi-val">{{ kpis.vendas_mes|brl }}</strong>
+      <small class="kpi-sub">
+        {% if kpis.crescimento >= 0 %}<span class="var-pos">▲ {{ '%.1f'|format(kpis.crescimento) }}%</span>
+        {% else %}<span class="var-neg">▼ {{ '%.1f'|format(kpis.crescimento) }}%</span>{% endif %}
+        vs. mês anterior · {{ kpis.qtd_mes }} vendas
+      </small>
+    </div>
+  </div>
+
+  <div class="kpi">
+    <div class="kpi-ic kpi-roxo"><svg class="ic"><use href="#i-cliente"/></svg></div>
+    <div class="kpi-txt">
+      <span class="kpi-rot">Ticket médio</span>
+      <strong class="kpi-val">{{ kpis.ticket|brl }}</strong>
+      <small class="kpi-sub">{{ kpis.clientes_novos }} cliente(s) novo(s) nos últimos 30 dias</small>
+    </div>
+  </div>
+
+  <div class="kpi">
+    <div class="kpi-ic kpi-laranja"><svg class="ic"><use href="#i-caixa"/></svg></div>
+    <div class="kpi-txt">
+      <span class="kpi-rot">Itens vendidos hoje</span>
+      <strong class="kpi-val">{{ kpis.itens_hoje|inteiro }}</strong>
+      <small class="kpi-sub">{{ kpis.produtos_ativos }} medicamentos ativos no catálogo</small>
+    </div>
+  </div>
+</div>
+
+{# ---------------- gráficos principais ---------------- #}
+<div class="grid grid-3-1">
+  <section class="cartao">
+    <header class="cartao-cab">
+      <div><h2>Vendas dos últimos 30 dias</h2><p>Faturamento diário concluído</p></div>
+      {% if pode('relatorios') %}<a class="btn btn-ghost btn-sm" href="{{ url_for('relatorios.relatorio', slug='vendas-dia') }}">Ver relatório</a>{% endif %}
+    </header>
+    <div class="grafico">{{ grafico_linha|safe }}</div>
+  </section>
+
+  <section class="cartao cartao-meta">
+    <header class="cartao-cab"><div><h2>Meta do dia</h2><p>{{ meta_diaria|brl }} por dia</p></div></header>
+    <div class="gauge">{{ meta|safe }}</div>
+    <ul class="mini-stats">
+      <li><span>Realizado</span><strong>{{ kpis.vendas_hoje|brl }}</strong></li>
+      <li><span>Falta</span><strong>{{ (meta_diaria - kpis.vendas_hoje if meta_diaria > kpis.vendas_hoje else 0)|brl }}</strong></li>
+      <li><span>Vendas hoje</span><strong>{{ kpis.qtd_hoje }}</strong></li>
+    </ul>
+  </section>
+</div>
+
+<div class="grid grid-3">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Medicamentos mais vendidos</h2><p>Últimos 30 dias · quantidade</p></div></header>
+    {{ grafico_top|safe }}
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Formas de pagamento</h2><p>Participação no faturamento</p></div></header>
+    {{ grafico_formas|safe }}
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Vendas por laboratório</h2><p>Valor faturado · 30 dias</p></div></header>
+    {{ grafico_labs|safe }}
+  </section>
+</div>
+
+<div class="grid grid-2">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Alertas de estoque</h2><p>{{ total_estoque_baixo }} produto(s) no mínimo ou zerado</p></div>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('estoque.index', aba='baixos') }}">Ver todos</a></header>
+    {% if estoque_baixo %}
+    <div class="tabela-scroll">
+      <table class="tabela">
+        <thead><tr><th>Medicamento</th><th class="num">Saldo</th><th class="num">Mínimo</th><th></th></tr></thead>
+        <tbody>
+        {% for p in estoque_baixo %}
+          <tr>
+            <td><a class="link-forte" href="{{ url_for('produtos.detalhe', produto_id=p.id) }}">{{ p.nome }}</a>
+                <small class="sub">{{ p.principio_ativo }} · {{ p.laboratorio }}</small></td>
+            <td class="num {{ 'texto-critico' if p.estoque <= 0 else 'texto-alerta' }}"><strong>{{ p.estoque }}</strong></td>
+            <td class="num">{{ p.estoque_minimo }}</td>
+            <td class="fim"><a class="btn btn-ghost btn-xs" href="{{ url_for('estoque.entrada') }}">Repor</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="vazio">✓ Nenhum produto abaixo do estoque mínimo.</p>
+    {% endif %}
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Validades próximas</h2><p>Lotes que exigem atenção</p></div>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('relatorios.relatorio', slug='vencimentos') }}">Relatório</a></header>
+    {% if vencimentos %}
+    <div class="tabela-scroll">
+      <table class="tabela">
+        <thead><tr><th>Medicamento</th><th>Lote</th><th>Validade</th><th class="num">Qtd.</th></tr></thead>
+        <tbody>
+        {% for l in vencimentos %}
+          <tr>
+            <td><a class="link-forte" href="{{ url_for('produtos.detalhe', produto_id=l.produto_id) }}">{{ l.nome }}</a></td>
+            <td>{{ l.lote or '-' }}</td>
+            <td>{{ l.validade|data }}
+              {% if l.dias is not none and l.dias < 0 %}{{ badge('vencido', 'critico') }}
+              {% elif l.dias is not none and l.dias <= 15 %}{{ badge(l.dias ~ 'd', 'alerta') }}
+              {% else %}{{ badge(l.dias ~ 'd', 'neutro') }}{% endif %}</td>
+            <td class="num">{{ l.quantidade }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="vazio">✓ Nenhum lote vencendo no período configurado.</p>
+    {% endif %}
+  </section>
+</div>
+
+<div class="grid grid-2">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Últimas vendas</h2><p>Atualizado em tempo real</p></div>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('vendas.lista') }}">Histórico</a></header>
+    <div class="tabela-scroll">
+      <table class="tabela tabela-hover">
+        <thead><tr><th>Venda</th><th>Cliente</th><th>Operador</th><th class="num">Total</th><th></th></tr></thead>
+        <tbody>
+        {% for v in ultimas_vendas %}
+          <tr class="{{ 'linha-cancelada' if v.status == 'cancelada' }}">
+            <td><a class="link-forte" href="{{ url_for('vendas.detalhe', venda_id=v.id) }}">{{ v.numero }}</a>
+                <small class="sub">{{ v.data|datahora }}</small></td>
+            <td>{{ v.cliente or 'Consumidor' }}</td>
+            <td>{{ v.operador or '-' }}</td>
+            <td class="num"><strong>{{ v.total|brl }}</strong></td>
+            <td class="fim">{% if v.status == 'cancelada' %}{{ badge('cancelada', 'critico') }}{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="vazio">Nenhuma venda registrada ainda.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Movimentações recentes</h2><p>Entradas, saídas e ajustes</p></div>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('estoque.index', aba='movimentacoes') }}">Ver tudo</a></header>
+    <ul class="lista-eventos">
+      {% for m in movimentacoes %}
+      <li>
+        <span class="evento-ic evento-{{ m.tipo }}">
+          {{ {'entrada':'↓','venda':'↑','ajuste':'±','perda':'!','devolucao':'↺','cancelamento':'×'}.get(m.tipo, '•') }}
+        </span>
+        <div class="evento-txt">
+          <strong>{{ m.produto }}</strong>
+          <small>{{ m.usuario or 'sistema' }} · {{ m.criado_em|datahora }}</small>
+          {% if m.observacao %}<small class="obs">{{ m.observacao }}</small>{% endif %}
+        </div>
+        <span class="evento-qtd {{ 'mais' if m.quantidade > 0 else 'menos' }}">
+          {{ '+' if m.quantidade > 0 else '' }}{{ m.quantidade }}
+        </span>
+      </li>
+      {% else %}
+        <li class="vazio">Nenhuma movimentação registrada.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+<div class="grid grid-2">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Fichas vencidas</h2><p>Clientes com dívida em aberto para cobrança</p></div>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('relatorios.relatorio', slug='fichas') }}">Todas as fichas</a></header>
+    {% if vencidas %}
+    <ul class="lista-eventos">
+      {% for c in vencidas %}
+      <li>
+        <span class="evento-ic evento-perda">!</span>
+        <div class="evento-txt">
+          <strong><a class="link-forte" href="{{ url_for('clientes.detalhe', cliente_id=c.id) }}">{{ c.nome }}</a></strong>
+          <small>Vencida em {{ c.vencimento|data }}</small>
+        </div>
+        <span class="evento-qtd menos">{{ c.saldo_credito|brl }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+      <p class="vazio">✓ Nenhuma ficha vencida.</p>
+    {% endif %}
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Vendas por hora · hoje</h2><p>Comportamento do movimento no caixa</p></div></header>
+    <div class="grafico grafico-baixo">{{ grafico_horas|safe }}</div>
+  </section>
+</div>
+
+<div class="grid grid-2">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Vendas por classe terapêutica</h2><p>30 dias</p></div></header>
+    {{ grafico_classe|safe }}
+  </section>
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Atalhos úteis</h2><p>Acesso rápido às funções mais usadas</p></div></header>
+    <div class="atalhos">
+      <a class="atalho" href="{{ url_for('pdv.index') }}"><svg class="ic"><use href="#i-pdv"/></svg><span>PDV</span><kbd>F2</kbd></a>
+      <a class="atalho" href="{{ url_for('produtos.novo') }}"><svg class="ic"><use href="#i-pill"/></svg><span>Novo medicamento</span></a>
+      <a class="atalho" href="{{ url_for('estoque.entrada') }}"><svg class="ic"><use href="#i-caixa"/></svg><span>Entrada de nota</span></a>
+      <a class="atalho" href="{{ url_for('clientes.novo') }}"><svg class="ic"><use href="#i-cliente"/></svg><span>Novo cliente</span></a>
+      {% if usuario.perfil == 'admin' %}
+      <form method="post" action="{{ url_for('backup.criar') }}" class="atalho-form">
+        <button type="submit" class="atalho"><svg class="ic"><use href="#i-backup"/></svg><span>Gerar backup agora</span></button>
+      </form>
+      <a class="atalho" href="{{ url_for('admin.empresa') }}"><svg class="ic"><use href="#i-engrenagem"/></svg><span>Configurar empresa</span></a>
+      {% endif %}
+      <a class="atalho" href="{{ url_for('relatorios.index') }}"><svg class="ic"><use href="#i-grafico"/></svg><span>Relatórios</span></a>
+    </div>
+  </section>
+</div>
+{% endblock %}

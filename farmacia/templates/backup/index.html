@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% block title %}Backup e restauração{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho('Backup e recuperação', 'Proteja, exporte, importe e restaure todos os dados do sistema',
+  '<a class="btn btn-ghost" href="' ~ url_for('backup.verificar') ~ '">Verificar integridade</a>
+   <a class="btn btn-ghost" href="' ~ url_for('backup.importar') ~ '">Importar de outro sistema</a>') }}
+
+<div class="kpis kpis-compactos">
+  <div class="kpi"><div class="kpi-ic kpi-azul"><svg class="ic"><use href="#i-backup"/></svg></div>
+    <div class="kpi-txt"><span class="kpi-rot">Backups no servidor</span>
+      <strong class="kpi-val">{{ historico|length }}</strong>
+      <small class="kpi-sub">{{ total_backups }} ocupados em disco</small></div></div>
+  <div class="kpi"><div class="kpi-ic kpi-verde"><svg class="ic"><use href="#i-caixa"/></svg></div>
+    <div class="kpi-txt"><span class="kpi-rot">Banco de dados</span>
+      <strong class="kpi-val">{{ uso_db }}</strong>
+      <small class="kpi-sub">arquivo data/farmacia.db</small></div></div>
+  <div class="kpi"><div class="kpi-ic kpi-roxo"><svg class="ic"><use href="#i-relogio"/></svg></div>
+    <div class="kpi-txt"><span class="kpi-rot">Backup automático</span>
+      <strong class="kpi-val">{{ 'Ativo' if automatico == '1' else 'Desativado' }}</strong>
+      <small class="kpi-sub">mantém os últimos {{ manter }} backups</small></div></div>
+  <div class="kpi"><div class="kpi-ic kpi-laranja"><svg class="ic"><use href="#i-relogio"/></svg></div>
+    <div class="kpi-txt"><span class="kpi-rot">Último backup</span>
+      <strong class="kpi-val" style="font-size:1.05rem">{{ historico[0].criado_em|datahora if historico else 'Nenhum' }}</strong>
+      <small class="kpi-sub">{{ historico[0].tipo if historico else 'gere o primeiro agora' }}</small></div></div>
+</div>
+
+<div class="grid grid-3">
+  {# ------------- criar backup ------------- #}
+  <section class="cartao destaque-sweep">
+    <header class="cartao-cab"><div><h2>Gerar backup agora</h2>
+      <p>Copia o banco, as fotos dos produtos e um arquivo JSON legível</p></div></header>
+    <form method="post" action="{{ url_for('backup.criar') }}">
+      <label class="campo"><span>Descrição (opcional)</span>
+        <input type="text" name="descricao" placeholder="Ex.: antes da atualização"></label>
+      <button class="btn btn-primario btn-bloco btn-lg" type="submit">
+        <svg class="ic"><use href="#i-backup"/></svg> Criar backup completo (.zip)</button>
+      <p class="dica">O arquivo fica em <code>data/backups</code> e pode ser baixado abaixo.</p>
+    </form>
+  </section>
+
+  {# ------------- configurações ------------- #}
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Configurações</h2><p>Rotina automática de proteção</p></div></header>
+    <form method="post" action="{{ url_for('backup.configurar') }}">
+      <label class="campo campo-check">
+        <input type="checkbox" name="automatico" {% if automatico == '1' %}checked{% endif %}>
+        <span>Backup automático ao iniciar o servidor</span></label>
+      <label class="campo"><span>Manter quantos backups no servidor</span>
+        <input type="number" name="manter" min="1" max="500" value="{{ manter }}"></label>
+      <button class="btn btn-secundario btn-bloco" type="submit">Salvar configurações</button>
+    </form>
+    <div class="box-dica mini">
+      💡 Copie a pasta <code>data/</code> para um HD externo ou nuvem com frequência.
+      O backup automático roda a cada inicialização do servidor.
+    </div>
+  </section>
+
+  {# ------------- exportar ------------- #}
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Exportar dados</h2><p>Para planilhas, contabilidade ou migração</p></div></header>
+    <div class="botoes-empilhados">
+      <a class="btn btn-secundario btn-bloco" href="{{ url_for('backup.exportar_json') }}">⬇ Arquivo JSON completo</a>
+      <a class="btn btn-ghost btn-bloco" href="{{ url_for('backup.exportar_todos_csv') }}">⬇ ZIP com todas as tabelas (CSV)</a>
+    </div>
+    <form method="get" action="" class="form-linha">
+      <select name="tabela" class="sel-filtro" id="selectTabelaExport">
+        {% for tabela in ['produtos','clientes','fornecedores','vendas','venda_itens','lotes',
+                          'movimentacoes','fichas','entradas','parametros'] %}
+          <option value="{{ tabela }}">{{ tabela }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-ghost" type="button" id="btnExportCsv"
+              data-url-base="{{ url_for('backup.exportar_csv', tabela='TABELA') }}">Baixar CSV da tabela</button>
+    </form>
+    <p class="dica">CSV separado por “;” e codificação UTF-8 (abre direto no Excel).</p>
+  </section>
+</div>
+
+<div class="grid grid-2">
+  {# ------------- restaurar ------------- #}
+  <section class="cartao cartao-perigo">
+    <header class="cartao-cab"><div><h2>Restaurar backup</h2>
+      <p>Substitui ATUALMENTE todos os dados do sistema pelos do arquivo</p></div></header>
+    <div class="alerta-barra alerta-perigo">
+      <svg class="ic"><use href="#i-alerta"/></svg>
+      <div><strong>Atenção</strong>
+        <span>Um backup de segurança do estado atual é criado automaticamente antes da restauração.</span></div>
+    </div>
+    <form method="post" action="{{ url_for('backup.restaurar') }}" enctype="multipart/form-data">
+      <label class="campo"><span>Arquivo .zip gerado pelo sistema</span>
+        <input type="file" name="arquivo" accept=".zip"></label>
+      <label class="campo"><span>ou escolha um backup do histórico</span>
+        <select name="backup_id">
+          <option value="">— enviar arquivo —</option>
+          {% for b in historico if b.existe %}
+            <option value="{{ b.id }}">{{ b.arquivo }} ({{ b.tamanho_fmt }})</option>
+          {% endfor %}
+        </select></label>
+      <label class="campo"><span>Digite RESTAURAR para confirmar<span class="obrig">*</span></span>
+        <input type="text" name="confirmacao" placeholder="RESTAURAR" required></label>
+      <button class="btn btn-perigo btn-bloco" type="submit">Restaurar sistema</button>
+    </form>
+  </section>
+
+  {# ------------- importar ------------- #}
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Importar dados de outros sistemas</h2>
+      <p>Planilhas CSV de ERP, programas de farmácia e arquivos JSON</p></div></header>
+
+    <div class="lista-importacao">
+      <a class="item-importacao" href="{{ url_for('backup.importar') }}">
+        <span class="ii-ic">📊</span>
+        <div><strong>Importar produtos, clientes ou fornecedores (CSV)</strong>
+          <small>Detecção automática de colunas · modelos Sankhya, Contax, Prontifarm, Universo, Tasy, Sifarma…</small></div>
+        <span class="ii-seta">›</span>
+      </a>
+    </div>
+
+    <form method="post" action="{{ url_for('backup.importar_json') }}" enctype="multipart/form-data"
+          class="form-import-json">
+      <label class="campo"><span>Restaurar a partir de um JSON exportado</span>
+        <input type="file" name="arquivo" accept=".json"></label>
+      <label class="campo"><span>Digite RESTAURAR para confirmar<span class="obrig">*</span></span>
+        <input type="text" name="confirmacao" placeholder="RESTAURAR" required></label>
+      <button class="btn btn-secundario btn-bloco" type="submit">Importar JSON (substitui dados)</button>
+      <p class="dica">Aceita arquivos gerados por este sistema e exports com a estrutura
+        <code>{"tabelas": {"produtos": [...]}}</code>.</p>
+    </form>
+  </section>
+</div>
+
+{# ------------- histórico ------------- #}
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Histórico de backups</h2>
+    <p>Arquivos gerados e armazenados no servidor</p></div>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('backup.exportar_todos_csv') }}">Exportar tudo em CSV</a></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Arquivo</th><th>Data/hora</th><th>Tipo</th><th class="num">Tamanho</th>
+        <th>Usuário</th><th>Hash SHA-256</th><th>Descrição</th><th></th></tr></thead>
+      <tbody>
+      {% for b in historico %}
+        <tr>
+          <td><strong>{{ b.arquivo }}</strong></td>
+          <td>{{ b.criado_em|datahora }}</td>
+          <td>{{ badge(b.tipo, {'manual':'azul','automatico':'ok','programado':'neutro',
+               'antes-restauracao':'alerta','antes-importar-json':'alerta'}.get(b.tipo, 'neutro')) }}</td>
+          <td class="num">{{ b.tamanho_fmt }}</td>
+          <td>{{ b.usuario or 'sistema' }}</td>
+          <td class="hash">{{ (b.hash or '')[:16] }}…</td>
+          <td class="obs">{{ b.observacao or '—' }}</td>
+          <td class="fim">
+            <div class="acoes-tabela">
+              {% if b.existe %}
+                <a class="btn btn-ghost btn-xs" href="{{ url_for('backup.baixar', backup_id=b.id) }}">Baixar</a>
+                <form method="post" action="{{ url_for('backup.restaurar') }}" class="form-inline"
+                      data-confirm="Restaurar o sistema a partir de {{ b.arquivo }}? Todos os dados atuais serão substituídos.">
+                  <input type="hidden" name="backup_id" value="{{ b.id }}">
+                  <input type="hidden" name="confirmacao" value="RESTAURAR">
+                  <button class="btn btn-secundario btn-xs" type="submit">Restaurar</button>
+                </form>
+                <form method="post" action="{{ url_for('backup.excluir', backup_id=b.id) }}" class="form-inline"
+                      data-confirm="Excluir o arquivo {{ b.arquivo }}?">
+                  <button class="btn btn-perigo btn-ghost btn-xs" type="submit">×</button>
+                </form>
+              {% else %}
+                {{ badge('arquivo ausente', 'critico') }}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="vazio">Nenhum backup gerado ainda. Clique em “Criar backup completo”.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Primeiro acesso{% endblock %}
+{% block bodyclass %}pagina-login{% endblock %}
+
+{% block sem_layout %}
+<div class="login-wrap">
+  <div class="login-arte" aria-hidden="true">
+    <div class="bolha b1"></div><div class="bolha b2"></div><div class="bolha b3"></div>
+    <div class="login-arte-conteudo">
+      <div class="marca-grande">
+        <span class="marca-simbolo grande"><svg class="ic"><use href="#i-pill"/></svg></span>
+        <div>
+          <h1>Primeiro acesso</h1>
+          <p>Vamos preparar o seu sistema</p>
+        </div>
+      </div>
+      <ol class="lista-passos">
+        <li>Crie o usuário administrador</li>
+        <li>Configure os dados da farmácia em Administração</li>
+        <li>Cadastre fornecedores, medicamentos e clientes</li>
+        <li>Ative o backup automático</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="login-form-lado">
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% if mensagens %}
+        <div class="toasts toasts-estatico">
+          {% for categoria, texto in mensagens %}
+            <div class="toast toast-{{ categoria }}" data-toast>
+              <span class="toast-ic">{% if categoria == 'ok' %}✓{% elif categoria == 'erro' %}!{% else %}i{% endif %}</span>
+              <span class="toast-txt">{{ texto }}</span>
+              <button class="toast-fechar" aria-label="Fechar">×</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form class="login-card" method="post">
+      <div class="login-card-cab">
+        <h2>Criar administrador</h2>
+        <p>Este usuário terá acesso total ao sistema</p>
+      </div>
+      <label class="campo"><span>Nome completo</span>
+        <input type="text" name="nome" placeholder="Seu nome" required autofocus></label>
+      <label class="campo"><span>Login de acesso</span>
+        <input type="text" name="login" placeholder="ex.: admin" minlength="3" required></label>
+      <label class="campo"><span>Senha</span>
+        <input type="password" name="senha" placeholder="mínimo 6 caracteres" minlength="6" required></label>
+      <label class="campo"><span>Confirmar senha</span>
+        <input type="password" name="confirma" placeholder="repita a senha" minlength="6" required></label>
+      <button class="btn btn-primario btn-lg btn-bloco" type="submit">Criar administrador</button>
+      <div class="login-rodape">Já existe um usuário? <a href="{{ url_for('auth.login') }}">Entrar</a></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

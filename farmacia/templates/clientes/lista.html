@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Clientes{% endblock %}
+{% from 'partials/macros.html' import cabecalho, paginacao, badge %}
+
+{% block content %}
+{{ cabecalho('Clientes', total ~ ' cadastro(s)',
+  '<a class="btn btn-primario" href="' ~ url_for('clientes.novo') ~ '"><svg class="ic"><use href="#i-mais"/></svg> Novo cliente</a>') }}
+
+<form class="filtros" method="get">
+  <div class="campo campo-busca"><span class="lupa">⌕</span>
+    <input type="search" name="q" value="{{ termo }}" placeholder="Nome, CPF, telefone ou e-mail…" autofocus></div>
+  <select name="situacao" class="sel-filtro">
+    <option value="">Todos</option>
+    <option value="ativo" {% if situacao=='ativo' %}selected{% endif %}>Ativos</option>
+    <option value="debito" {% if situacao=='debito' %}selected{% endif %}>Com saldo em aberto</option>
+    <option value="inativo" {% if situacao=='inativo' %}selected{% endif %}>Inativos</option>
+  </select>
+  <button class="btn btn-primario" type="submit">Filtrar</button>
+  {% if termo or situacao %}<a class="btn btn-ghost" href="{{ url_for('clientes.lista') }}">Limpar</a>{% endif %}
+</form>
+
+{% if itens %}
+<div class="cartao">
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead>
+        <tr><th>Cliente</th><th>Documento</th><th>Contato</th><th>Cidade</th>
+          <th class="num">Compras</th><th class="num">Saldo ficha</th><th>Situação</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for c in itens %}
+        <tr class="{{ 'linha-inativa' if c.ativo == 0 }}" data-fade>
+          <td>
+            <a class="cliente-celula" href="{{ url_for('clientes.detalhe', cliente_id=c.id) }}">
+              <span class="avatar avatar-sm">{{ c.nome[:1]|upper }}</span>
+              <span><strong>{{ c.nome }}</strong>
+                <small class="sub">{{ c.pontos }} ponto(s) · desde {{ c.criado_em|data }}</small></span>
+            </a>
+          </td>
+          <td>{{ c.cpf|cpf if c.cpf else '—' }}</td>
+          <td>{{ c.celular or c.telefone or '—' }}<small class="sub">{{ c.email or '' }}</small></td>
+          <td>{{ c.cidade or '—' }}{% if c.uf %} / {{ c.uf }}{% endif %}</td>
+          <td class="num">—</td>
+          <td class="num">
+            {% if c.saldo_credito > 0 %}<strong class="texto-critico">{{ c.saldo_credito|brl }}</strong>
+            {% else %}<span class="texto-suave">{{ c.saldo_credito|brl }}</span>{% endif %}
+          </td>
+          <td>{% if c.ativo == 0 %}{{ badge('Inativo', 'critico') }}
+              {% elif c.saldo_credito > 0 %}{{ badge('Ficha aberta', 'alerta') }}
+              {% else %}{{ badge('Regular', 'ok') }}{% endif %}</td>
+          <td class="fim"><a class="btn btn-ghost btn-xs" href="{{ url_for('clientes.detalhe', cliente_id=c.id) }}">Abrir</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{ paginacao(page, pages, 'clientes.lista', {'q': termo, 'situacao': situacao}) }}
+{% else %}
+<div class="cartao centralizado">
+  <div class="vazio-icone"><svg class="ic"><use href="#i-cliente"/></svg></div>
+  <h3>Nenhum cliente encontrado</h3>
+  <p>Cadastre clientes para usar fichas de crédito, histórico de compras e campanhas.</p>
+  <a class="btn btn-primario" href="{{ url_for('clientes.novo') }}">Cadastrar cliente</a>
+</div>
+{% endif %}
+{% endblock %}

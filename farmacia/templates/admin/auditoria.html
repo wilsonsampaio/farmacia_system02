@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Log de atividades{% endblock %}
+{% from 'partials/macros.html' import cabecalho, paginacao, badge %}
+
+{% block content %}
+{{ cabecalho('Log de atividades', 'Auditoria de todas as ações realizadas no sistema',
+  '<form method="post" action="' ~ url_for('admin.limpar_auditoria') ~ '" class="form-inline"
+     data-confirm="Reduzir o log para as 200 linhas mais recentes?">
+     <button class="btn btn-ghost" type="submit">Limpar log antigo</button></form>
+   <a class="btn btn-ghost" href="' ~ url_for('relatorios.relatorio', slug='auditoria') ~ '">Relatório completo</a>') }}
+
+<form class="filtros" method="get">
+  <div class="campo campo-busca"><span class="lupa">⌕</span>
+    <input type="search" name="q" value="{{ termo }}" placeholder="Usuário, ação ou detalhe…" autofocus></div>
+  <select name="acao" class="sel-filtro">
+    <option value="">Todas as ações</option>
+    {% for a in acoes %}
+      <option value="{{ a.acao }}" {% if acao_atual == a.acao %}selected{% endif %}>{{ a.acao }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-primario" type="submit">Filtrar</button>
+  <a class="btn btn-ghost" href="{{ url_for('admin.auditoria') }}">Limpar</a>
+</form>
+
+<section class="cartao">
+  <header class="cartao-cab"><div><h2>Registro de ações</h2><p>{{ total }} evento(s)</p></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Data/hora</th><th>Usuário</th><th>Ação</th><th>Módulo</th>
+        <th>Detalhes</th><th>IP</th></tr></thead>
+      <tbody>
+      {% for a in itens %}
+        <tr>
+          <td class="nowrap">{{ a.criado_em|datahora }}</td>
+          <td>{{ a.usuario or 'sistema' }}</td>
+          <td>{{ badge(a.acao, 'critico' if 'falhou' in a.acao or 'excluir' in a.acao or 'cancelar' in a.acao
+                       else ('ok' if 'login' == a.acao or 'criar' in a.acao else 'neutro')) }}</td>
+          <td>{{ a.tabela or '—' }}{% if a.registro_id %} #{{ a.registro_id }}{% endif %}</td>
+          <td class="obs">{{ a.detalhes or '—' }}</td>
+          <td>{{ a.ip or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="vazio">Nenhum evento registrado.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{ paginacao(page, pages, 'admin.auditoria', {'q': termo, 'acao': acao_atual}) }}
+{% endblock %}

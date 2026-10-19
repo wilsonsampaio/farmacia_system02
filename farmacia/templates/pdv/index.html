@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+{% block title %}PDV · Caixa{% endblock %}
+{% block bodyclass %}pagina-pdv{% endblock %}
+
+{% block content %}
+<div class="pdv" id="pdv" data-terminal="{{ terminal }}">
+  {# ------------------------------- topo ------------------------------- #}
+  <header class="pdv-topo">
+    <div class="pdv-topo-esq">
+      <span class="pdv-logo"><svg class="ic"><use href="#i-pdv"/></svg></span>
+      <div>
+        <strong>Ponto de Venda</strong>
+        <small>{{ terminal }} · Operador: {{ usuario.nome }} · {{ empresa.nome }}</small>
+      </div>
+    </div>
+    <div class="pdv-topo-meio">
+      <button class="btn btn-ghost btn-sm" type="button" data-abre-modal="modalCliente" id="btnCliente">
+        <svg class="ic"><use href="#i-cliente"/></svg> Cliente
+        <span class="chip" id="chipCliente">{{ cliente.nome if cliente else 'Consumidor' }}</span>
+      </button>
+      <input type="hidden" id="clienteId" value="{{ cliente.id if cliente else '' }}">
+      <input type="hidden" id="clienteLimite" value="{{ cliente.limite_credito if cliente else 0 }}">
+      <input type="hidden" id="clienteSaldo" value="{{ cliente.saldo_credito if cliente else 0 }}">
+      <button class="btn btn-ghost btn-sm" type="button" id="btnObservacao">Observação</button>
+    </div>
+    <div class="pdv-topo-dir">
+      <span class="relogio" id="relogio">--:--</span>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('vendas.lista') }}">Histórico</a>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('dashboard.index') }}">Dashboard</a>
+    </div>
+  </header>
+
+  <div class="pdv-corpo">
+    {# ------------------------------- busca ------------------------------- #}
+    <section class="pdv-busca">
+      <div class="pdv-campo-busca">
+        <svg class="ic"><use href="#i-lupa"/></svg>
+        <input type="text" id="buscaProduto" autocomplete="off"
+               placeholder="Leia o código de barras ou digite o nome do medicamento… (F2)">
+        <kbd>F2</kbd>
+        <button class="btn btn-primario" type="button" id="btnBuscar">Buscar</button>
+      </div>
+      <div class="pdv-resultados" id="resultadosBuscaProduto">
+        <p class="pdv-dica">Comece a digitar ou passe o leitor de código de barras para buscar medicamentos.</p>
+      </div>
+    </section>
+
+    {# ------------------------------- carrinho ------------------------------- #}
+    <section class="pdv-carrinho">
+      <header class="pdv-carrinho-cab">
+        <h2>Cupom em aberto</h2>
+        <div class="pdv-carrinho-acoes">
+          <button class="btn btn-ghost btn-xs" type="button" id="btnDescontoItem">Desconto no item (F7)</button>
+          <button class="btn btn-ghost btn-xs" type="button" id="btnDescontoTotal">Desconto total (F8)</button>
+          <button class="btn btn-perigo btn-ghost btn-xs" type="button" id="btnLimpar">Limpar (ESC)</button>
+        </div>
+      </header>
+      <div class="pdv-tabela-wrap">
+        <table class="tabela tabela-pdv" id="tabelaCarrinho">
+          <thead>
+            <tr><th class="c-item">Item</th><th class="c-desc">Descrição</th><th class="c-qtd">Qtd.</th>
+              <th class="c-unit">Unitário</th><th class="c-desc-vl">Desc.</th><th class="c-total">Subtotal</th><th class="c-acao"></th></tr>
+          </thead>
+          <tbody id="corpoCarrinho">
+            <tr class="linha-vazia"><td colspan="7">
+              <div class="carrinho-vazio">
+                <svg class="ic ic-lg"><use href="#i-pill"/></svg>
+                <p><strong>Carrinho vazio</strong></p>
+                <p>Busque o medicamento acima ou passe o código de barras.<br>
+                  Atalhos: <kbd>F2</kbd> buscar · <kbd>F4</kbd> cliente · <kbd>F8</kbd> desconto ·
+                  <kbd>F9</kbd> pagamento · <kbd>ESC</kbd> limpar</p>
+              </div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pdv-resumo" id="resumoVenda">
+        <div class="resumo-col">
+          <span>Itens</span><strong id="resumoItens">0</strong>
+        </div>
+        <div class="resumo-col">
+          <span>Subtotal</span><strong id="resumoSubtotal">R$ 0,00</strong>
+        </div>
+        <div class="resumo-col">
+          <span>Descontos</span><strong class="texto-ok" id="resumoDesconto">R$ 0,00</strong>
+        </div>
+        <div class="resumo-col resumo-total">
+          <span>Total a pagar</span><strong id="resumoTotal">R$ 0,00</strong>
+        </div>
+        <button class="btn btn-primario btn-lg" type="button" id="btnPagamento">
+          Pagar (F9) <svg class="ic"><use href="#i-seta"/></svg>
+        </button>
+      </footer>
+    </section>
+
+    {# ------------------------------- lateral ------------------------------- #}
+    <aside class="pdv-lateral">
+      <section class="pdv-total-bloco">
+        <span>Total da venda</span>
+        <strong id="totalGrande">R$ 0,00</strong>
+        <small id="totalQtd">0 item(s)</small>
+      </section>
+
+      <section class="pdv-pag-rapido">
+        <h3>Pagamento rápido</h3>
+        <div class="grade-formas">
+          {% for codigo, nome in formas %}
+            <button class="forma-btn" type="button" data-forma="{{ codigo }}" {% if codigo == 'ficha' %}data-exige-cliente="1"{% endif %}>
+              {{ nome }}
+            </button>
+          {% endfor %}
+        </div>
+        <small class="texto-suave">Selecione a forma e conclua com <kbd>F9</kbd>.</small>
+      </section>
+
+      <section class="pdv-ultimas">
+        <h3>Últimas vendas do caixa</h3>
+        <ul id="ultimasVendas">
+          {% for v in ultimas %}
+          <li class="{{ 'cancelada' if v.status == 'cancelada' }}">
+            <a href="{{ url_for('vendas.detalhe', venda_id=v.id) }}">{{ v.numero }}</a>
+            <span>{{ v.hora if v.hora is defined else v.data[11:16] }}</span>
+            <strong>{{ v.total|brl }}</strong>
+          </li>
+          {% else %}
+          <li class="texto-suave">Nenhuma venda registrada.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="pdv-atalhos">
+        <h3>Atalhos</h3>
+        <ul>
+          <li><kbd>F2</kbd> Buscar produto</li>
+          <li><kbd>F4</kbd> Selecionar cliente</li>
+          <li><kbd>F7</kbd> Desconto no item</li>
+          <li><kbd>F8</kbd> Desconto total</li>
+          <li><kbd>F9</kbd> Abrir pagamento</li>
+          <li><kbd>F10</kbd> Confirmar venda</li>
+          <li><kbd>ESC</kbd> Fechar / limpar</li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+</div>
+
+{# --------------------------- modal cliente --------------------------- #}
+<div class="modal" id="modalCliente" hidden>
+  <div class="modal-dialogo">
+    <div class="modal-cab">
+      <h3>Cliente da venda</h3>
+      <button class="fecha-modal" data-fecha aria-label="Fechar">×</button>
+    </div>
+    <div class="modal-corpo">
+      <div class="abas-sub">
+        <button class="aba ativo" type="button" data-aba="buscaCliente">Buscar cliente</button>
+        <button class="aba" type="button" data-aba="novoCliente">Cadastro rápido</button>
+      </div>
+      <div data-painel="buscaCliente">
+        <div class="campo campo-busca"><span class="lupa">⌕</span>
+          <input type="text" id="buscaCliente" placeholder="Nome, CPF ou celular…" autocomplete="off" autofocus></div>
+        <div class="resultados-mini resultados-altos" id="resultadosCliente"></div>
+        <div class="acoes">
+          <button class="btn btn-ghost" type="button" id="btnSemCliente">Usar consumidor padrão</button>
+        </div>
+      </div>
+      <div data-painel="novoCliente" hidden>
+        <label class="campo"><span>Nome completo</span>
+          <input type="text" id="novoClienteNome" placeholder="Nome do cliente"></label>
+        <label class="campo"><span>CPF (opcional)</span>
+          <input type="text" id="novoClienteCpf" data-cpf placeholder="000.000.000-00"></label>
+        <label class="campo"><span>Celular (opcional)</span>
+          <input type="tel" id="novoClienteCelular" data-fone placeholder="(00) 00000-0000"></label>
+        <div class="acoes">
+          <button class="btn btn-primario" type="button" id="btnSalvarCliente">Cadastrar e usar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# --------------------------- modal desconto --------------------------- #}
+<div class="modal" id="modalDesconto" hidden>
+  <div class="modal-dialogo modal-sm">
+    <div class="modal-cab">
+      <h3 id="tituloDesconto">Desconto</h3>
+      <button class="fecha-modal" data-fecha aria-label="Fechar">×</button>
+    </div>
+    <div class="modal-corpo">
+      <p class="texto-suave" id="descricaoDesconto"></p>
+      <div class="segmentado" data-segmentado>
+        <button class="ativo" type="button" data-valor="valor">R$</button>
+        <button type="button" data-valor="percentual">%</button>
+      </div>
+      <label class="campo"><span>Valor do desconto</span>
+        <input type="text" id="valorDesconto" class="moeda" placeholder="0,00" autofocus></label>
+      <p class="texto-suave">Novo total: <strong id="totalAposDesconto">R$ 0,00</strong></p>
+    </div>
+    <div class="modal-acoes">
+      <button class="btn btn-ghost" type="button" data-fecha>Cancelar</button>
+      <button class="btn btn-primario" type="button" id="btnAplicarDesconto">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+{# --------------------------- modal pagamento --------------------------- #}
+<div class="modal modal-pagamento" id="modalPagamento" hidden>
+  <div class="modal-dialogo modal-lg">
+    <div class="modal-cab">
+      <h3>Receber pagamento</h3>
+      <button class="fecha-modal" data-fecha aria-label="Fechar">×</button>
+    </div>
+    <div class="modal-corpo">
+      <div class="pag-esquerda">
+        <div class="pag-total">
+          <span>Total da venda</span>
+          <strong id="pagTotal">R$ 0,00</strong>
+        </div>
+        <div class="grid-formas-pag">
+          {% for codigo, nome in formas %}
+            <button class="forma-pag" type="button" data-forma="{{ codigo }}"
+                    {% if codigo == 'ficha' %}data-exige-cliente="1"{% endif %}>{{ nome }}</button>
+          {% endfor %}
+        </div>
+        <label class="campo"><span>Valor recebido / desta forma (R$)</span>
+          <input type="text" id="pagValor" class="moeda" placeholder="0,00"></label>
+        <label class="campo" id="campoParcelas" hidden><span>Parcelas</span>
+          <input type="number" id="pagParcelas" min="1" max="24" value="1"></label>
+        <div class="acoes">
+          <button class="btn btn-secundario" type="button" id="btnAddPagamento">Adicionar pagamento</button>
+          <button class="btn btn-ghost" type="button" id="btnLimparPagamentos">Limpar</button>
+        </div>
+        <div class="tabela-scroll">
+          <table class="tabela tabela-mini" id="tabelaPagamentos">
+            <thead><tr><th>Forma</th><th class="num">Valor</th><th></th></tr></thead>
+            <tbody id="corpoPagamentos">
+              <tr><td colspan="3" class="vazio">Nenhum pagamento informado.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pag-direita">
+        <div class="pag-bloco"><span>Pagamentos informados</span><strong id="pagInformado">R$ 0,00</strong></div>
+        <div class="pag-bloco destaque"><span>Restante</span><strong id="pagRestante">R$ 0,00</strong></div>
+        <div class="pag-bloco troco"><span>Troco</span><strong id="pagTroco">R$ 0,00</strong></div>
+        <div class="pag-dica" id="pagDica">Selecione a forma de pagamento ao lado e informe o valor recebido.</div>
+        <label class="campo"><span>Observação da venda</span>
+          <input type="text" id="pagObservacao" placeholder="Opcional"></label>
+        <button class="btn btn-primario btn-lg btn-bloco" type="button" id="btnFinalizar">
+          Confirmar venda (F10)
+        </button>
+        <button class="btn btn-ghost btn-bloco" type="button" data-fecha>Voltar ao carrinho</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# --------------------------- overlay sucesso --------------------------- #}
+<div class="overlay-sucesso" id="overlaySucesso" hidden>
+  <div class="sucesso-card">
+    <div class="sucesso-icone">✓</div>
+    <h2>Venda concluída!</h2>
+    <p class="sucesso-numero" id="sucessoNumero">—</p>
+    <div class="sucesso-grades">
+      <div><span>Total</span><strong id="sucessoTotal">R$ 0,00</strong></div>
+      <div><span>Troco</span><strong id="sucessoTroco">R$ 0,00</strong></div>
+      <div><span>Fiado na ficha</span><strong id="sucessoFiado">R$ 0,00</strong></div>
+    </div>
+    <div class="sucesso-acoes">
+      <a class="btn btn-primario" id="btnImprimirCupom" target="_blank" rel="noopener">
+        <svg class="ic"><use href="#i-imprimir"/></svg> Imprimir cupom</a>
+      <a class="btn btn-secundario" id="btnAbrirVenda">Ver venda</a>
+      <button class="btn btn-ghost" type="button" id="btnNovaVenda">Nova venda (Enter)</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

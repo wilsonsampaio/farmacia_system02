@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cupom {{ venda.numero }}</title>
+<style>
+  :root { --larg: {{ '58mm' if largura == '58' else '80mm' }}; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #eef1f6; font-family: "DejaVu Sans Mono", "Courier New", monospace; }
+  .ferramentas { max-width: 320px; margin: 14px auto; display: flex; gap: 8px; justify-content: center; }
+  .ferramentas a, .ferramentas button {
+    font: 600 13px/1 system-ui, sans-serif; padding: 9px 14px; border-radius: 8px; border: 0;
+    background: #2f7cff; color: #fff; text-decoration: none; cursor: pointer; }
+  .ferramentas .sec { background: #475569; }
+  .cupom {
+    width: var(--larg); min-height: 120mm; margin: 0 auto 20px; background: #fff; color: #000;
+    padding: 3mm 2.5mm; font-size: 10.5px; line-height: 1.35; box-shadow: 0 6px 24px rgba(0,0,0,.12);
+  }
+  .center { text-align: center; }
+  .b { font-weight: 700; }
+  .grande { font-size: 13px; font-weight: 800; letter-spacing: .4px; }
+  hr { border: 0; border-top: 1px dashed #000; margin: 4px 0; }
+  .dupla { border-top: 3px double #000; margin: 5px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { vertical-align: top; padding: 1px 0; font-weight: 400; text-align: left; }
+  .num { text-align: right; white-space: nowrap; }
+  .item-nome { display: block; font-weight: 700; }
+  .item-cod { display: block; font-size: 9px; opacity: .8; }
+  .totais td { font-size: 12px; }
+  .total-final { font-size: 15px; font-weight: 800; }
+  .rodape { font-size: 9.5px; margin-top: 6px; }
+  .obs { font-size: 9px; }
+  .qrcode { width: 26mm; height: 26mm; margin: 6px auto 2px; border: 1px solid #000;
+            display: flex; align-items: center; justify-content: center; font-size: 8px; text-align: center; }
+  @page { size: {{ '58mm' if largura == '58' else '80mm' }} auto; margin: 2mm; }
+  @media print {
+    html, body { background: #fff; }
+    .ferramentas { display: none !important; }
+    .cupom { box-shadow: none; margin: 0; width: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="ferramentas">
+  <button onclick="window.print()">🖨 Imprimir (Ctrl+P)</button>
+  <button class="sec" onclick="window.close()">Fechar</button>
+</div>
+
+<div class="cupom">
+  <div class="center">
+    <div class="grande">{{ empresa.nome|upper }}</div>
+    {% if empresa.fantasia and empresa.fantasia != empresa.nome %}<div>{{ empresa.fantasia }}</div>{% endif %}
+    <div>{{ empresa.endereco }}</div>
+    <div>{{ empresa.cidade }}</div>
+    <div>CNPJ {{ empresa.cnpj }}{% if empresa.ie %} · IE {{ empresa.ie }}{% endif %}</div>
+    <div>{{ empresa.telefone }}{% if empresa.email %} · {{ empresa.email }}{% endif %}</div>
+    {% if empresa.crf %}<div>{{ empresa.crf }}</div>{% endif %}
+  </div>
+
+  <hr>
+  <div class="center b">CUPOM NÃO FISCAL DE VENDA</div>
+  {% if venda.status == 'cancelada' %}<div class="center b">*** VENDA CANCELADA ***</div>{% endif %}
+  <hr>
+
+  <table>
+    <tr><td>Cupom</td><td class="num b">{{ venda.numero }}</td></tr>
+    <tr><td>Data</td><td class="num">{{ venda.data|datahora }}</td></tr>
+    <tr><td>Operador</td><td class="num">{{ venda.operador or '—' }}</td></tr>
+    <tr><td>Terminal</td><td class="num">{{ venda.terminal or 'PDV' }}</td></tr>
+    {% if venda.cliente %}
+      <tr><td>Cliente</td><td class="num">{{ venda.cliente }}</td></tr>
+      {% if venda.cliente_cpf %}<tr><td>CPF</td><td class="num">{{ venda.cliente_cpf|cpf }}</td></tr>{% endif %}
+      {% if venda.cliente_celular %}<tr><td>Telefone</td><td class="num">{{ venda.cliente_celular }}</td></tr>{% endif %}
+    {% endif %}
+  </table>
+
+  <hr>
+  <table>
+    <thead>
+      <tr><th style="width:46%">Descrição</th><th class="num">Qtd</th>
+        <th class="num">Unitário</th><th class="num">Total</th></tr>
+    </thead>
+    <tbody>
+    {% for i in itens %}
+      <tr>
+        <td>
+          <span class="item-nome">{{ i.nome }}</span>
+          <span class="item-cod">{{ i.codigo or '' }}</span>
+          {% if i.desconto > 0 %}<span class="item-cod">desc. item: {{ i.desconto|brl }}</span>{% endif %}
+        </td>
+        <td class="num">{{ i.quantidade }}</td>
+        <td class="num">{{ '%.2f'|format(i.preco_unitario) }}</td>
+        <td class="num b">{{ '%.2f'|format(i.subtotal) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <hr>
+  <table class="totais">
+    <tr><td>Subtotal ({{ itens|length }} item(s))</td><td class="num">{{ venda.subtotal|brl }}</td></tr>
+    {% if venda.desconto > 0 %}
+      <tr><td>Desconto</td><td class="num">- {{ venda.desconto|brl }}</td></tr>
+    {% endif %}
+    <tr class="total-final"><td>TOTAL</td><td class="num">{{ venda.total|brl }}</td></tr>
+  </table>
+
+  <hr>
+  <table class="totais">
+    {% for p in pagamentos %}
+      <tr><td>{{ {'dinheiro':'Dinheiro','debito':'Cartão de débito','credito':'Cartão de crédito',
+                  'pix':'PIX','ficha':'Ficha do cliente','ticket':'Ticket / vale',
+                  'boleto':'Boleto'}.get(p.forma, p.forma) }}{% if p.parcelas > 1 %} ({{ p.parcelas }}x){% endif %}</td>
+        <td class="num">{{ p.valor|brl }}</td></tr>
+    {% endfor %}
+    <tr><td>Valor recebido</td><td class="num">{{ venda.valor_pago|brl }}</td></tr>
+    <tr><td class="b">TROCO</td><td class="num b">{{ venda.troco|brl }}</td></tr>
+  </table>
+
+  <div class="dupla"></div>
+
+  {% if venda.observacao %}
+    <div class="obs">Obs.: {{ venda.observacao }}</div>
+  {% endif %}
+
+  <div class="rodape center">
+    <div class="b">{{ params.get('cupom_texto_rodape', 'Obrigado pela preferência!') }}</div>
+    <div class="obs">{{ params.get('cupom_texto_aviso', 'Documento sem valor fiscal.') }}</div>
+    <div class="obs">Venda {{ venda.numero }} · impresso em {{ hora_impressao }}</div>
+  </div>
+</div>
+
+{% if auto_print %}
+<script>
+  window.addEventListener('load', function () {
+    setTimeout(function () { window.print(); }, 350);
+  });
+</script>
+{% endif %}
+</body>
+</html>

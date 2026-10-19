@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Trocar senha{% endblock %}
+{% from 'partials/macros.html' import cabecalho %}
+
+{% block content %}
+{{ cabecalho('Minha conta', 'Alteração de senha do usuário ' ~ usuario.login) }}
+<div class="cartao cartao-limite">
+  <form method="post" class="formulario">
+    <label class="campo"><span>Senha atual<span class="obrig">*</span></span>
+      <input type="password" name="atual" required autofocus></label>
+    <label class="campo"><span>Nova senha<span class="obrig">*</span></span>
+      <input type="password" name="nova" minlength="6" required>
+      <small class="dica">Mínimo de 6 caracteres.</small></label>
+    <label class="campo"><span>Confirmar nova senha<span class="obrig">*</span></span>
+      <input type="password" name="confirma" minlength="6" required></label>
+    <div class="acoes">
+      <button class="btn btn-primario" type="submit">Salvar nova senha</button>
+      <a class="btn btn-ghost" href="{{ url_for('dashboard.index') }}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

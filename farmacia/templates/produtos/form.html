@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if produto else 'Novo' }} medicamento{% endblock %}
+{% from 'partials/macros.html' import cabecalho, campo, textarea, select %}
+
+{% block content %}
+{{ cabecalho(('Editar ' ~ produto.nome) if produto else 'Novo medicamento',
+   'Preencha a ficha completa: identificação, preço, estoque e bula',
+   '<a class="btn btn-ghost" href="' ~ (url_for('produtos.detalhe', produto_id=produto.id) if produto else url_for('produtos.lista')) ~ '">Cancelar</a>') }}
+
+<form class="formulario" method="post" enctype="multipart/form-data" id="formProduto">
+  <nav class="abas" data-abas>
+    <button type="button" class="aba ativo" data-aba="identificacao">1 · Identificação</button>
+    <button type="button" class="aba" data-aba="comercial">2 · Preço e estoque</button>
+    <button type="button" class="aba" data-aba="fotos">3 · Fotos</button>
+    <button type="button" class="aba" data-aba="bula">4 · Bula completa</button>
+  </nav>
+
+  {# ---------------- identificação ---------------- #}
+  <section class="cartao aba-painel" data-painel="identificacao">
+    <header class="cartao-cab"><div><h2>Identificação do medicamento</h2><p>Os dados que aparecem na busca e no cupom</p></div></header>
+    <div class="grade-campos">
+      <label class="campo"><span>Nome comercial *<span class="obrig">*</span></span>
+        <input type="text" name="nome" value="{{ dados.nome or '' }}" required placeholder="Ex.: Dipirona Monoidratada 500mg">
+        <small class="dica">Nome de venda usado no PDV.</small></label>
+
+      <label class="campo"><span>Código interno *</span>
+        <input type="text" name="codigo" value="{{ dados.codigo or '' }}" required placeholder="Ex.: DIP500">
+        <small class="dica">Código único do sistema (também lido pelo leitor de código de barras).</small></label>
+
+      <label class="campo"><span>Código de barras (EAN)</span>
+        <input type="text" name="ean" value="{{ dados.ean or '' }}" data-numeros placeholder="7891058010001"></label>
+
+      <label class="campo"><span>Princípio ativo</span>
+        <input type="text" name="principio_ativo" value="{{ dados.principio_ativo or '' }}"
+               placeholder="Ex.: Dipirona monoidratada"></label>
+
+      <label class="campo"><span>Laboratório</span>
+        <input type="text" name="laboratorio" list="lista-labs" value="{{ dados.laboratorio or '' }}" placeholder="Ex.: EMS">
+        <datalist id="lista-labs">
+          {% for lab in ['EMS','Medley','Neo Química','Sanofi','Pfizer','Aché','Cimed','Germed','Eurofarma','Hypofarma','Prati-Donaduzzi','Bayer','GSK','Novartis','Tecnomed','Biolab','Merck','Boehringer','AstraZeneca','Lupin'] %}
+            <option value="{{ lab }}">{% endfor %}
+        </datalist></label>
+
+      <label class="campo"><span>Classe terapêutica</span>
+        <input type="text" name="classe_terapeutica" list="lista-classes" value="{{ dados.classe_terapeutica or '' }}"
+               placeholder="Ex.: Analgésico e antitérmico">
+        <datalist id="lista-classes">
+          {% for c in classes %}<option value="{{ c }}">{% endfor %}
+        </datalist></label>
+
+      <label class="campo"><span>Apresentação</span>
+        <input type="text" name="apresentacao" value="{{ dados.apresentacao or '' }}" placeholder="Ex.: Caixa com 20 comprimidos"></label>
+
+      <label class="campo"><span>Concentração / dosagem</span>
+        <input type="text" name="concentracao" value="{{ dados.concentracao or '' }}" placeholder="Ex.: 500 mg"></label>
+
+      <label class="campo"><span>Registro ANVISA</span>
+        <input type="text" name="registro_anvisa" value="{{ dados.registro_anvisa or '' }}" placeholder="Ex.: 1.000.000.000"></label>
+
+      <label class="campo"><span>NCM</span>
+        <input type="text" name="ncm" value="{{ dados.ncm or '' }}" data-numeros placeholder="3004.90.99"></label>
+
+      <label class="campo"><span>Unidade</span>
+        <input type="text" name="unidade" value="{{ dados.unidade or 'UN' }}" maxlength="6"></label>
+
+      <label class="campo"><span>Tarja</span>
+        <select name="tarja">
+          {% for codigo, nome in tarjas %}
+            <option value="{{ codigo }}" {% if (dados.tarja or 'livre') == codigo %}selected{% endif %}>{{ nome }}</option>
+          {% endfor %}
+        </select></label>
+
+      <label class="campo campo-check">
+        <input type="checkbox" name="controlado" {% if dados.controlado %}checked{% endif %}>
+        <span>Medicamento controlado (Portaria 344/98)</span></label>
+
+      <label class="campo campo-check">
+        <input type="checkbox" name="receita_obrigatoria" {% if dados.receita_obrigatoria %}checked{% endif %}>
+        <span>Exige retenção da receita na venda</span></label>
+    </div>
+  </section>
+
+  {# ---------------- preço e estoque ---------------- #}
+  <section class="cartao aba-painel" data-painel="comercial" hidden>
+    <header class="cartao-cab"><div><h2>Preço, margem e estoque</h2><p>O sistema calcula a margem de lucro automaticamente</p></div></header>
+    <div class="grade-campos">
+      <label class="campo"><span>Preço de custo (R$)</span>
+        <input type="text" name="preco_custo" value="{{ '%.2f'|format(dados.preco_custo or 0) if produto else '' }}"
+               class="moeda" data-pc="1" placeholder="0,00"></label>
+
+      <label class="campo"><span>Preço de venda (R$) *</span>
+        <input type="text" name="preco_venda" value="{{ '%.2f'|format(dados.preco_venda or 0) if produto else '' }}"
+               class="moeda" data-pv="1" required placeholder="0,00"></label>
+
+      <div class="campo campo-info">
+        <span>Margem calculada</span>
+        <strong id="margemCalculada">—</strong>
+        <small class="dica">Lucro bruto sobre o preço de custo.</small>
+      </div>
+
+      <label class="campo"><span>Estoque mínimo</span>
+        <input type="number" name="estoque_minimo" min="0" value="{{ dados.estoque_minimo if dados.estoque_minimo is defined else 0 }}"></label>
+
+      <label class="campo"><span>Localização na prateleira</span>
+        <input type="text" name="localizacao" value="{{ dados.localizacao or '' }}" placeholder="Ex.: Prateleira B - gaveta 3"></label>
+
+      <label class="campo campo-check">
+        <input type="checkbox" name="ativo" {% if (dados.ativo if dados.ativo is defined else 1) %}checked{% endif %}>
+        <span>Produto ativo (aparece nas buscas e no PDV)</span></label>
+
+      {% if not produto %}
+      <div class="campo-separador"><span>Estoque inicial (opcional)</span></div>
+      <label class="campo"><span>Quantidade inicial</span>
+        <input type="number" name="estoque_inicial" min="0" value="0"></label>
+      <label class="campo"><span>Lote inicial</span>
+        <input type="text" name="lote_inicial" placeholder="Ex.: L202601"></label>
+      <label class="campo"><span>Validade do lote</span>
+        <input type="date" name="validade_inicial"></label>
+      {% endif %}
+
+      <label class="campo campo-largo"><span>Observações internas</span>
+        <textarea name="observacoes" rows="3" placeholder="Restrições, condições de compra, substituições…">{{ dados.observacoes or '' }}</textarea></label>
+    </div>
+    <footer class="cartao-rodape">
+      {% if produto %}
+      <span class="info-rodape">Estoque atual: <strong>{{ produto.estoque }}</strong> un. ·
+        movimentações são feitas em Estoque</span>
+      {% endif %}
+      <button class="btn btn-primario" type="submit">{{ 'Salvar alterações' if produto else 'Cadastrar medicamento' }}</button>
+    </footer>
+  </section>
+
+  {# ---------------- fotos ---------------- #}
+  <section class="cartao aba-painel" data-painel="fotos" hidden>
+    <header class="cartao-cab"><div><h2>Fotos do medicamento</h2><p>Imagens da caixa/draga ajudam na identificação no PDV</p></div></header>
+    <div class="grade-campos">
+      <label class="drop-foto" id="dropFoto">
+        <input type="file" name="foto" accept="image/*" id="inputFoto">
+        <div class="drop-foto-txt">
+          <svg class="ic ic-lg"><use href="#i-foto"/></svg>
+          <strong>Clique ou arraste uma imagem</strong>
+          <small>JPG, PNG ou WEBP · até 8 MB · a foto é redimensionada automaticamente</small>
+        </div>
+        <img class="previa" id="previaFoto" alt="Prévia" hidden>
+      </label>
+    </div>
+
+    {% if produto %}
+    <div class="galeria">
+      {% for f in fotos %}
+      <figure class="foto-item {% if f.principal %}principal{% endif %}">
+        <img src="{{ media_url(f.arquivo) }}" alt="Foto {{ loop.index }}">
+        <figcaption>
+          {% if f.principal %}<span class="badge badge-ok">Principal</span>{% endif %}
+        </figcaption>
+        <div class="foto-acoes">
+          {% if not f.principal %}
+          <form method="post" action="{{ url_for('produtos.foto_principal_acao', produto_id=produto.id, foto_id=f.id) }}">
+            <button class="btn btn-ghost btn-xs" type="submit">Definir principal</button></form>
+          {% endif %}
+          <form method="post" action="{{ url_for('produtos.excluir_foto', produto_id=produto.id, foto_id=f.id) }}"
+                data-confirm="Remover esta foto do medicamento?">
+            <button class="btn btn-perigo btn-xs" type="submit">Remover</button></form>
+        </div>
+      </figure>
+      {% else %}
+      <p class="vazio">Nenhuma foto enviada ainda.</p>
+      {% endfor %}
+    </div>
+    <footer class="cartao-rodape">
+      <span class="info-rodape">As fotos são salvas na pasta <code>data/uploads/produtos</code> e entram no backup automático.</span>
+      <button class="btn btn-primario" type="submit">Salvar fotos</button>
+    </footer>
+    {% endif %}
+  </section>
+
+  {# ---------------- bula ---------------- #}
+  <section class="cartao aba-painel" data-painel="bula" hidden>
+    <header class="cartao-cab"><div><h2>Bula completa</h2><p>Cole o texto oficial da bula do medicamento</p></div>
+      <a class="btn btn-ghost btn-sm" href="https://consultas.anvisa.gov.br/" target="_blank" rel="noopener">Consultar ANVISA ↗</a></header>
+    <div class="grade-campos">
+      <label class="campo campo-largo"><span>Indicações (para que serve)</span>
+        <textarea name="bula_indicacoes" rows="4" placeholder="O que este medicamento trata…">{{ bula.indicacoes if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Posologia e modo de usar</span>
+        <textarea name="bula_posologia" rows="4" placeholder="Dose, frequência, duração do tratamento…">{{ bula.posologia if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Contraindicações</span>
+        <textarea name="bula_contraindicacoes" rows="4" placeholder="Quem não pode usar…">{{ bula.contraindicacoes if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Efeitos colaterais / reações adversas</span>
+        <textarea name="bula_efeitos_adversos" rows="4">{{ bula.efeitos_adversos if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Advertências e precauções</span>
+        <textarea name="bula_advertencias" rows="4">{{ bula.advertencias if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Interações medicamentosas</span>
+        <textarea name="bula_interacoes" rows="4">{{ bula.interacoes if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Uso na gravidez e lactação</span>
+        <textarea name="bula_gravidez" rows="3">{{ bula.gravidez if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Sobredosagem (o que fazer)</span>
+        <textarea name="bula_sobredoagem" rows="3">{{ bula.sobredoagem if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Armazenamento e conservação</span>
+        <textarea name="bula_armazenamento" rows="3" placeholder="Temperatura, local seco, protegido da luz…">{{ bula.armazenamento if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Excipientes</span>
+        <textarea name="bula_excipientes" rows="2">{{ bula.excipientes if bula else '' }}</textarea></label>
+
+      <label class="campo campo-largo"><span>Link oficial da bula (bula.com.br / Anvisa)</span>
+        <input type="url" name="bula_link_bula" value="{{ bula.link_bula if bula else '' }}" placeholder="https://…"></label>
+    </div>
+    <footer class="cartao-rodape">
+      <span class="info-rodape">{% if bula and bula.atualizada_em %}Bula atualizada em {{ bula.atualizada_em|datahora }}{% else %}Bula ainda não preenchida{% endif %}</span>
+      <button class="btn btn-primario" type="submit">{{ 'Salvar bula' if produto else 'Cadastrar com esta bula' }}</button>
+    </footer>
+  </section>
+
+  {% if not produto %}
+  <div class="acoes-finais">
+    <button class="btn btn-primario btn-lg" type="submit">Cadastrar medicamento</button>
+    <a class="btn btn-ghost" href="{{ url_for('produtos.lista') }}">Cancelar</a>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

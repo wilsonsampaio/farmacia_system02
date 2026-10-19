@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+{% block title %}Estoque{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge, estoque_badge, paginacao %}
+
+{% block content %}
+{{ cabecalho('Controle de estoque', 'Saldo, lotes, validades e movimentações',
+  '<a class="btn btn-primario" href="' ~ url_for('estoque.entrada') ~ '"><svg class="ic"><use href="#i-mais"/></svg> Entrada de nota</a>
+   <button class="btn btn-ghost" type="button" data-abre-modal="modalSaida">Baixa manual</button>
+   <a class="btn btn-ghost" href="' ~ url_for('relatorios.relatorio', slug='estoque') ~ '">Relatórios</a>') }}
+
+<div class="kpis kpis-compactos">
+  <div class="kpi">
+    <div class="kpi-ic kpi-azul"><svg class="ic"><use href="#i-caixa"/></svg></div>
+    <div class="kpi-txt"><span class="kpi-rot">Itens ativos</span>
+      <strong class="kpi-val">{{ resumo.itens|inteiro }}</strong>
+      <small class="kpi-sub">{{ resumo.unidades|inteiro }} unidade(s) em estoque</small></div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-ic kpi-verde"><svg class="ic"><use href="#i-grafico"/></svg></div>
+    <div class="kpi-txt"><span class="kpi-rot">Valor de custo</span>
+      <strong class="kpi-val">{{ resumo.custo|brl }}</strong>
+      <small class="kpi-sub">Venda potencial: {{ resumo.venda|brl }}</small></div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-ic kpi-laranja"><svg class="ic"><use href="#i-alerta"/></svg></div>
+    <div class="kpi-txt"><span class="kpi-rot">Reposição</span>
+      <strong class="kpi-val">{{ resumo.baixos }}</strong>
+      <small class="kpi-sub">{{ resumo.zerados }} zerado(s) · {{ resumo.vencendo }} un. vencendo</small></div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-ic kpi-roxo"><svg class="ic"><use href="#i-relogio"/></svg></div>
+    <div class="kpi-txt"><span class="kpi-rot">Vencidos</span>
+      <strong class="kpi-val">{{ resumo.vencidos|inteiro }}</strong>
+      <small class="kpi-sub">unidades já vencidas em lote</small></div>
+  </div>
+</div>
+
+<nav class="abas" data-abas>
+  <button type="button" class="aba {% if aba == 'resumo' or aba not in ['baixos','vencimentos','lotes','movimentacoes','entradas','inventario'] %}ativo{% endif %}" data-aba="resumo">Resumo</button>
+  <button type="button" class="aba {% if aba == 'baixos' %}ativo{% endif %}" data-aba="baixos">Repor estoque <span class="aba-cont">{{ baixos|length }}</span></button>
+  <button type="button" class="aba {% if aba == 'vencimentos' %}ativo{% endif %}" data-aba="vencimentos">Validades <span class="aba-cont">{{ vencimentos|length }}</span></button>
+  <button type="button" class="aba {% if aba == 'lotes' %}ativo{% endif %}" data-aba="lotes">Lotes</button>
+  <button type="button" class="aba {% if aba == 'movimentacoes' %}ativo{% endif %}" data-aba="movimentacoes">Movimentações</button>
+  <button type="button" class="aba {% if aba == 'entradas' %}ativo{% endif %}" data-aba="entradas">Notas de entrada <span class="aba-cont">{{ entradas|length }}</span></button>
+  <button type="button" class="aba {% if aba == 'inventario' %}ativo{% endif %}" data-aba="inventario">Inventário (imprimir)</button>
+</nav>
+
+{# ------------------------------- resumo ------------------------------- #}
+<section class="cartao aba-painel" data-painel="resumo" {% if aba not in ['baixos','vencimentos','lotes','movimentacoes','entradas','inventario'] %}{% else %}hidden{% endif %}>
+  <header class="cartao-cab"><div><h2>Resumo do estoque</h2><p>Posição consolidada da mercadoria</p></div></header>
+  <div class="grid grid-3">
+    <div class="painel-linha"><strong>{{ resumo.itens }}</strong><span>produtos ativos</span></div>
+    <div class="painel-linha"><strong>{{ resumo.unidades|inteiro }}</strong><span>unidades em estoque</span></div>
+    <div class="painel-linha"><strong>{{ resumo.custo|brl }}</strong><span>valor a preço de custo</span></div>
+    <div class="painel-linha"><strong>{{ resumo.venda|brl }}</strong><span>valor a preço de venda</span></div>
+    <div class="painel-linha alerta"><strong>{{ resumo.baixos }}</strong><span>abaixo do mínimo</span></div>
+    <div class="painel-linha critico"><strong>{{ resumo.zerados }}</strong><span>sem estoque</span></div>
+  </div>
+  <div class="box-dica">
+    💡 <strong>Dica:</strong> a baixa de venda é automática pelo PDV e segue FIFO (o lote de validade mais próxima é
+    consumido primeiro). Use <em>Ajuste</em> apenas em inventários.
+  </div>
+</section>
+
+{# ------------------------------- baixos ------------------------------- #}
+<section class="cartao aba-painel" data-painel="baixos" {% if aba != 'baixos' %}hidden{% endif %}>
+  <header class="cartao-cab"><div><h2>Sugestão de compra</h2><p>Produtos com saldo igual ou inferior ao mínimo</p></div>
+    <button class="btn btn-ghost btn-sm" type="button" id="btnSugestao">Calcular giro 30 dias</button></header>
+  <div id="areaSugestao" hidden>
+    <div class="tabela-scroll">
+      <table class="tabela">
+        <thead><tr><th>Produto</th><th class="num">Saldo</th><th class="num">Mínimo</th>
+          <th class="num">Giro 30d</th><th class="num">Comprar</th><th class="num">Custo estimado</th></tr></thead>
+        <tbody id="corpoSugestao"></tbody>
+        <tfoot><tr><th colspan="5">Total estimado</th><th class="num" id="totalSugestao">—</th></tr></tfoot>
+      </table>
+    </div>
+  </div>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Produto</th><th>Código</th><th class="num">Saldo</th><th class="num">Mínimo</th>
+        <th>Situação</th><th></th></tr></thead>
+      <tbody>
+      {% for p in baixos %}
+        <tr>
+          <td><a class="link-forte" href="{{ url_for('produtos.detalhe', produto_id=p.id) }}">{{ p.nome }}</a>
+            <small class="sub">{{ p.principio_ativo }} · {{ p.laboratorio }}</small></td>
+          <td>{{ p.codigo }}</td>
+          <td class="num {{ 'texto-critico' if p.estoque <= 0 else 'texto-alerta' }}"><strong>{{ p.estoque }}</strong></td>
+          <td class="num">{{ p.estoque_minimo }}</td>
+          <td>{{ badge('Sem estoque', 'critico') if p.estoque <= 0 else badge('Repor', 'alerta') }}</td>
+          <td class="fim"><a class="btn btn-ghost btn-xs" href="{{ url_for('estoque.entrada') }}">Entrada</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="vazio">✓ Todos os produtos estão acima do estoque mínimo.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# ---------------------------- vencimentos ---------------------------- #}
+<section class="cartao aba-painel" data-painel="vencimentos" {% if aba != 'vencimentos' %}hidden{% endif %}>
+  <header class="cartao-cab"><div><h2>Lotes próximos do vencimento</h2>
+    <p>Alerta de até {{ alerta_dias }} dias (configurável em Administração)</p></div>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('relatorios.relatorio', slug='vencimentos') }}">Relatório</a></header>
+  <div class="tabela-scroll">
+    <table class="tabela">
+      <thead><tr><th>Produto</th><th>Lote</th><th>Validade</th><th>Dias</th>
+        <th class="num">Qtd.</th><th class="num">Valor</th><th>Situação</th></tr></thead>
+      <tbody>
+      {% for l in vencimentos %}
+        <tr class="{{ 'linha-critica' if l.situacao == 'vencido' }}">
+          <td><a class="link-forte" href="{{ url_for('produtos.detalhe', produto_id=l.produto_id) }}">{{ l.nome }}</a></td>
+          <td>{{ l.lote or '—' }}</td>
+          <td><strong>{{ l.validade|data }}</strong></td>
+          <td class="{{ 'texto-critico' if l.dias is not none and l.dias < 0 else '' }}">{{ l.dias if l.dias is not none else '—' }}</td>
+          <td class="num">{{ l.quantidade }}</td>
+          <td class="num">{{ (l.quantidade * (l.preco_custo or 0))|brl }}</td>
+          <td>{{ badge('Vencido', 'critico') if l.situacao == 'vencido' else (badge('Crítico', 'alerta') if l.situacao == 'critico' else badge('Atenção', 'neutro')) }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="vazio">✓ Nenhum lote dentro do período de alerta.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# ------------------------------- lotes ------------------------------- #}
+<section class="cartao aba-painel" data-painel="lotes" {% if aba != 'lotes' %}hidden{% endif %}>
+  <header class="cartao-cab"><div><h2>Todos os lotes com saldo</h2><p>{{ lotes|length }} lote(s)</p></div></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Produto</th><th>Lote</th><th>Validade</th><th class="num">Saldo</th>
+        <th class="num">Custo</th><th>Fornecedor</th><th>Nota</th></tr></thead>
+      <tbody>
+      {% for l in lotes %}
+        <tr>
+          <td><a class="link-forte" href="{{ url_for('produtos.detalhe', produto_id=l.produto_id) }}">{{ l.produto }}</a>
+            <small class="sub">{{ l.codigo }}</small></td>
+          <td>{{ l.lote or '—' }}</td>
+          <td>{{ l.validade|data if l.validade else '—' }}
+            {% if l.validade and l.dias is not none and l.dias < 0 %}{{ badge('vencido', 'critico') }}{% endif %}</td>
+          <td class="num"><strong>{{ l.quantidade }}</strong></td>
+          <td class="num">{{ l.preco_custo|brl }}</td>
+          <td>{{ l.razao_social or '—' }}</td>
+          <td>{{ l.nota_fiscal or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="vazio">Nenhum lote com saldo.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# --------------------------- movimentações --------------------------- #}
+<section class="cartao aba-painel" data-painel="movimentacoes" {% if aba != 'movimentacoes' %}hidden{% endif %}>
+  <header class="cartao-cab"><div><h2>Histórico de movimentações</h2>
+    <p>{{ total_mov }} registro(s)</p></div>
+    <button class="btn btn-ghost btn-sm" type="button" onclick="window.print()">Imprimir</button></header>
+
+  <form class="filtros filtros-inline" method="get">
+    <input type="hidden" name="aba" value="movimentacoes">
+    <div class="campo campo-busca"><span class="lupa">⌕</span>
+      <input type="search" name="produto" value="{{ request.args.get('produto','') }}" placeholder="Produto…"></div>
+    <select name="tipo" class="sel-filtro">
+      <option value="">Todos os tipos</option>
+      {% for t in ['entrada','venda','ajuste','perda','devolucao','cancelamento'] %}
+        <option value="{{ t }}" {% if request.args.get('tipo') == t %}selected{% endif %}>{{ t|capitalize }}</option>
+      {% endfor %}
+    </select>
+    <input type="date" name="de" value="{{ request.args.get('de','') }}" class="sel-filtro" title="De">
+    <input type="date" name="ate" value="{{ request.args.get('ate','') }}" class="sel-filtro" title="Até">
+    <button class="btn btn-primario" type="submit">Filtrar</button>
+    <a class="btn btn-ghost" href="{{ url_for('estoque.index', aba='movimentacoes') }}">Limpar</a>
+  </form>
+
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Data/hora</th><th>Produto</th><th>Tipo</th><th class="num">Qtd.</th>
+        <th class="num">Saldo</th><th>Usuário</th><th>Observação</th></tr></thead>
+      <tbody>
+      {% for m in movs %}
+        <tr>
+          <td>{{ m.criado_em|datahora }}</td>
+          <td><a class="link-forte" href="{{ url_for('produtos.detalhe', produto_id=m.produto_id) }}">{{ m.produto }}</a>
+            <small class="sub">{{ m.codigo }}</small></td>
+          <td>{{ badge(m.tipo|capitalize, {'entrada':'ok','venda':'azul','ajuste':'alerta',
+                'perda':'critico','devolucao':'neutro','cancelamento':'critico'}.get(m.tipo,'neutro')) }}</td>
+          <td class="num {{ 'mais' if m.quantidade > 0 else 'menos' }}"><strong>{{ '+' if m.quantidade > 0 else '' }}{{ m.quantidade }}</strong></td>
+          <td class="num">{{ m.saldo_apos if m.saldo_apos is not none else '—' }}</td>
+          <td>{{ m.usuario or 'sistema' }}</td>
+          <td class="obs">{{ m.observacao or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="vazio">Nenhuma movimentação encontrada.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ paginacao(page, pages, 'estoque.index', {'aba': 'movimentacoes', 'produto': request.args.get('produto',''),
+      'tipo': request.args.get('tipo',''), 'de': request.args.get('de',''), 'ate': request.args.get('ate','')}) }}
+</section>
+
+{# ------------------------------ entradas ------------------------------ #}
+<section class="cartao aba-painel" data-painel="entradas" {% if aba != 'entradas' %}hidden{% endif %}>
+  <header class="cartao-cab"><div><h2>Notas de entrada</h2><p>Compras e recebimentos de mercadoria</p></div>
+    <a class="btn btn-primario btn-sm" href="{{ url_for('estoque.entrada') }}">Nova entrada</a></header>
+  <div class="tabela-scroll">
+    <table class="tabela tabela-hover">
+      <thead><tr><th>Nota</th><th>Data</th><th>Fornecedor</th><th class="num">Itens</th>
+        <th class="num">Total</th><th>Operador</th></tr></thead>
+      <tbody>
+      {% for e in entradas %}
+        <tr>
+          <td><a class="link-forte" href="{{ url_for('estoque.entrada_detalhe', entrada_id=e.id) }}">{{ e.numero or ('#' ~ e.id) }}</a></td>
+          <td>{{ e.data_recebimento|datahora }}</td>
+          <td>{{ e.razao_social or 'Não informado' }}</td>
+          <td class="num">{{ e.itens }}</td>
+          <td class="num"><strong>{{ e.total|brl }}</strong></td>
+          <td>{{ e.usuario or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="vazio">Nenhuma entrada registrada.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# ----------------------------- inventário ----------------------------- #}
+<section class="cartao aba-painel" data-painel="inventario" {% if aba != 'inventario' %}hidden{% endif %}>
+  <header class="cartao-cab"><div><h2>Ficha de inventário</h2>
+    <p>{{ inventario|length }} produto(s) · imprima e conte fisicamente</p></div>
+    <button class="btn btn-primario btn-sm" type="button" onclick="window.print()">Imprimir inventário</button></header>
+  <div class="tabela-scroll">
+    <table class="tabela">
+      <thead><tr><th>Código</th><th>Produto</th><th>Princípio ativo</th><th>Laboratório</th>
+        <th class="num">Sistema</th><th class="num">Contagem</th><th class="num">Diferença</th><th>Local</th></tr></thead>
+      <tbody>
+      {% for p in inventario %}
+        <tr>
+          <td>{{ p.codigo }}</td>
+          <td>{{ p.nome }}</td>
+          <td>{{ p.principio_ativo or '—' }}</td>
+          <td>{{ p.laboratorio or '—' }}</td>
+          <td class="num">{{ p.estoque }}</td>
+          <td class="num celula-vazia" contenteditable="true"></td>
+          <td class="num diferenca" data-sistema="{{ p.estoque }}"></td>
+          <td>{{ p.localizacao or '—' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# modal baixa manual #}
+<div class="modal" id="modalSaida" hidden>
+  <div class="modal-dialogo">
+    <div class="modal-cab">
+      <h3>Baixa manual de estoque</h3>
+      <button class="fecha-modal" data-fecha aria-label="Fechar">×</button>
+    </div>
+    <form method="post" action="{{ url_for('estoque.saida') }}">
+      <div class="modal-corpo">
+        <p class="texto-suave">Use para perdas, quebras, vencimentos removidos, amostras ou transferências.</p>
+        <label class="campo"><span>Produto (nome ou código)</span>
+          <input type="text" name="busca_produto" id="buscaProdutoBaixa" autocomplete="off"
+                 placeholder="Digite para buscar…" data-produto-busca>
+          <input type="hidden" name="produto_id" id="produtoIdBaixa" required></label>
+        <div class="resultados-mini" id="resultadosBaixa"></div>
+        <div class="grade-campos">
+          <label class="campo"><span>Quantidade</span>
+            <input type="number" name="quantidade" min="1" required value="1"></label>
+          <label class="campo"><span>Motivo</span>
+            <select name="motivo">
+              <option value="perda">Perda / quebra</option>
+              <option value="vencimento">Vencimento removido</option>
+              <option value="amostra">Amstra / presente</option>
+              <option value="transferencia">Transferência</option>
+              <option value="consumo">Consumo interno</option>
+            </select></label>
+        </div>
+        <label class="campo"><span>Observação</span>
+          <input type="text" name="observacao" placeholder="Detalhe opcional"></label>
+      </div>
+      <div class="modal-acoes">
+        <button class="btn btn-ghost" type="button" data-fecha>Cancelar</button>
+        <button class="btn btn-perigo" type="submit">Registrar baixa</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

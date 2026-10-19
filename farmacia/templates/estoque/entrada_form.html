@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Entrada de mercadoria{% endblock %}
+{% from 'partials/macros.html' import cabecalho %}
+
+{% block content %}
+{{ cabecalho('Entrada de mercadoria', 'Recebimento de nota fiscal: informe os itens recebidos',
+  '<a class="btn btn-ghost" href="' ~ url_for('estoque.index', aba='entradas') ~ '">Ver entradas anteriores</a>') }}
+
+<form class="formulario" method="post" id="formEntrada">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Dados da nota</h2></div></header>
+    <div class="grade-campos">
+      <label class="campo"><span>Fornecedor</span>
+        <select name="fornecedor_id">
+          <option value="">— Não informado —</option>
+          {% for f in fornecedores %}
+            <option value="{{ f.id }}">{{ f.razao_social }}{% if f.nome_fantasia %} ({{ f.nome_fantasia }}){% endif %}</option>
+          {% endfor %}
+        </select>
+        <small class="dica"><a href="{{ url_for('fornecedores.novo') }}" target="_blank">+ Cadastrar fornecedor</a></small></label>
+
+      <label class="campo"><span>Número da nota / NF-e</span>
+        <input type="text" name="numero" placeholder="Ex.: 123456"></label>
+
+      <label class="campo"><span>Data de emissão</span>
+        <input type="date" name="data_emissao" value="{{ hoje }}"></label>
+
+      <label class="campo campo-largo"><span>Observações</span>
+        <input type="text" name="observacao" placeholder="Ex.: compra semanal, promoção, troca de lote"></label>
+    </div>
+  </section>
+
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Itens da entrada</h2><p>Busque pelo nome ou código de barras</p></div>
+      <button class="btn btn-ghost btn-sm" type="button" id="btnAddItem">+ Adicionar item</button></header>
+
+    <div class="tabela-scroll">
+      <table class="tabela tabela-editavel" id="tabelaItens">
+        <thead>
+          <tr><th style="width:34%">Produto</th><th class="num">Qtd.</th><th>Lote</th><th>Validade</th>
+            <th class="num">Custo unit.</th><th class="num">Subtotal</th><th></th></tr>
+        </thead>
+        <tbody id="corpoItens">
+          <tr class="linha-item" data-linha="1">
+            <td>
+              <div class="busca-produto">
+                <input type="text" class="input-busca-produto" autocomplete="off" placeholder="Nome, princípio ativo ou código…"
+                       data-busca-produto required>
+                <input type="hidden" name="produto_id" class="campo-produto-id" required>
+                <div class="resultados-mini" data-resultados></div>
+                <small class="produto-escolhido" data-escolhido></small>
+              </div>
+            </td>
+            <td class="num"><input type="number" name="quantidade" min="1" value="1" class="input-mini" required></td>
+            <td><input type="text" name="lote" placeholder="L202601" class="input-medio"></td>
+            <td><input type="date" name="validade" class="input-medio"></td>
+            <td class="num"><input type="text" name="preco_unitario" class="input-mini moeda" value="0,00"></td>
+            <td class="num subtotal">R$ 0,00</td>
+            <td class="fim"><button type="button" class="btn btn-perigo btn-xs" data-remover-linha>×</button></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr><th colspan="5" class="fim">Total da entrada</th><th class="num" id="totalEntrada">R$ 0,00</th><th></th></tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <footer class="cartao-rodape">
+      <span class="info-rodape">O estoque e o custo médio são atualizados automaticamente ao confirmar.</span>
+      <div class="acoes">
+        <a class="btn btn-ghost" href="{{ url_for('estoque.index', aba='entradas') }}">Cancelar</a>
+        <button class="btn btn-primario btn-lg" type="submit">Confirmar entrada</button>
+      </div>
+    </footer>
+  </section>
+</form>
+{% endblock %}

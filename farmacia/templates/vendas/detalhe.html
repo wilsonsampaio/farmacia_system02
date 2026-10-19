@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Venda {{ venda.numero }}{% endblock %}
+{% from 'partials/macros.html' import cabecalho, badge %}
+
+{% block content %}
+{{ cabecalho('Venda ' ~ venda.numero,
+  'Emitida em ' ~ venda.data|datahora ~ ' · ' ~ (venda.terminal or 'PDV') ~ ' · Operador: ' ~ (venda.operador or '—'),
+  '<a class="btn btn-primario" href="' ~ url_for('vendas.cupom', venda_id=venda.id) ~ '" target="_blank"><svg class="ic"><use href="#i-imprimir"/></svg> Imprimir cupom</a>
+   <a class="btn btn-ghost" href="' ~ url_for('vendas.lista') ~ '">Voltar ao histórico</a>') }}
+
+{% if venda.status == 'cancelada' %}
+<div class="alerta-barra alerta-perigo">
+  <svg class="ic"><use href="#i-alerta"/></svg>
+  <div><strong>Venda cancelada</strong>
+    <span>{{ venda.motivo_cancelamento or 'Sem motivo informado' }} ·
+      {{ venda.cancelado_por_nome or '—' }} · {{ venda.cancelada_em|datahora }}</span></div>
+</div>
+{% endif %}
+
+<div class="grid grid-3-1">
+  <section class="cartao">
+    <header class="cartao-cab"><div><h2>Itens da venda</h2><p>{{ itens|length }} item(ns)</p></div></header>
+    <div class="tabela-scroll">
+      <table class="tabela">
+        <thead><tr><th>Produto</th><th>Código</th><th class="num">Qtd.</th><th class="num">Unitário</th>
+          <th class="num">Desconto</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>
+        {% for i in itens %}
+          <tr>
+            <td>
+              <a class="link-forte" href="{{ url_for('produtos.detalhe', produto_id=i.produto_id) }}">{{ i.nome }}</a>
+              <small class="sub">{{ i.principio_ativo or '' }}{{ ' · ' ~ i.laboratorio if i.laboratorio else '' }}</small>
+            </td>
+            <td>{{ i.codigo }}</td>
+            <td class="num">{{ i.quantidade }}</td>
+            <td class="num">{{ i.preco_unitario|brl }}</td>
+            <td class="num">{{ i.desconto|brl }}</td>
+            <td class="num"><strong>{{ i.subtotal|brl }}</strong></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr><th colspan="5" class="fim">Subtotal</th><th class="num">{{ venda.subtotal|brl }}</th></tr>
+          {% if venda.desconto > 0 %}
+          <tr><th colspan="5" class="fim">Desconto</th><th class="num texto-ok">- {{ venda.desconto|brl }}</th></tr>
+          {% endif %}
+          <tr class="linha-total"><th colspan="5" class="fim">Total</th><th class="num">{{ venda.total|brl }}</th></tr>
+        </tfoot>
+      </table>
+    </div>
+    {% if venda.observacao %}
+    <footer class="cartao-rodape"><span class="info-rodape"><strong>Observação:</strong> {{ venda.observacao }}</span></footer>
+    {% endif %}
+  </section>
+
+  <aside class="stack">
+    <section class="cartao">
+      <header class="cartao-cab"><div><h2>Cliente</h2></div></header>
+      {% if venda.cliente %}
+        <div class="info-bloco"><span>Nome</span>
+          <strong><a class="link-forte" href="{{ url_for('clientes.detalhe', cliente_id=venda.cliente_id) }}">{{ venda.cliente }}</a></strong></div>
+        <div class="info-bloco"><span>CPF</span><strong>{{ venda.cliente_cpf|cpf if venda.cliente_cpf else '—' }}</strong></div>
+        <div class="info-bloco"><span>Contato</span><strong>{{ venda.cliente_celular or '—' }}</strong></div>
+      {% else %}
+        <p class="vazio">Venda para consumidor sem identificação.</p>
+      {% endif %}
+      {% if ficha %}
+        <footer class="cartao-rodape">
+          <span class="info-rodape texto-critico">Lançado na ficha: <strong>{{ ficha.valor|brl }}</strong>
+            · vencimento {{ ficha.vencimento|data }}</span>
+        </footer>
+      {% endif %}
+    </section>
+
+    <section class="cartao">
+      <header class="cartao-cab"><div><h2>Pagamento</h2></div></header>
+      <ul class="lista-pagamentos">
+        {% for p in pagamentos %}
+          <li><span>{{ {'dinheiro':'Dinheiro','debito':'Cartão débito','credito':'Cartão crédito','pix':'PIX',
+                       'ficha':'Ficha do cliente','ticket':'Ticket','boleto':'Boleto'}.get(p.forma, p.forma) }}
+              {% if p.parcelas > 1 %}<small>{{ p.parcelas }}x</small>{% endif %}</span>
+            <strong>{{ p.valor|brl }}</strong></li>
+        {% else %}
+          <li class="vazio">Nenhum pagamento lançado.</li>
+        {% endfor %}
+      </ul>
+      <div class="info-bloco"><span>Valor pago</span><strong>{{ venda.valor_pago|brl }}</strong></div>
+      <div class="info-bloco"><span>Troco</span><strong class="texto-ok">{{ venda.troco|brl }}</strong></div>
+      <div class="info-bloco"><span>Situação</span>
+        <strong>{% if venda.status == 'concluida' %}{{ badge('Concluída', 'ok') }}{% else %}{{ badge('Cancelada', 'critico') }}{% endif %}</strong></div>
+      <div class="info-bloco"><span>Cupons impressos</span><strong>{{ venda.cupom_impresso }}</strong></div>
+    </section>
+
+    {% if venda.status == 'concluida' and pode('vendas') %}
+    <section class="cartao">
+      <header class="cartao-cab"><div><h2>Ações</h2></div></header>
+      <form method="post" action="{{ url_for('vendas.cancelar', venda_id=venda.id) }}"
+            data-confirm="Cancelar a venda {{ venda.numero }}? O estoque será devolvido automaticamente.">
+        <label class="campo"><span>Número da venda para confirmar</span>
+          <input type="text" name="confirmar" placeholder="{{ venda.numero }}" required></label>
+        <label class="campo"><span>Motivo do cancelamento</span>
+          <input type="text" name="motivo" placeholder="Ex.: erro de lançamento"></label>
+        <button class="btn btn-perigo btn-bloco" type="submit">Cancelar venda e devolver estoque</button>
+      </form>
+      <p class="dica">Somente administradores, gerentes ou o próprio operador podem cancelar.</p>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}
